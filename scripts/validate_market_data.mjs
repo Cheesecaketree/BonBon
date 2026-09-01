@@ -19,7 +19,7 @@ if (!datasetResult.success) {
   printIssues('Market dataset', datasetResult.error)
   process.exitCode = 1
 } else {
-  console.log(`Validated ${datasetResult.data.markets.length} markets in dataset ${datasetResult.data.datasetVersion}.`)
+  console.log(`Validated ${datasetResult.data.markets.length} markets in the shared dataset.`)
 }
 
 const submissionArgument = process.argv[2]
@@ -28,9 +28,6 @@ if (submissionArgument && datasetResult.success) {
   const submissionResult = marketContributionFileSchema.safeParse(await readJson(submissionPath))
   if (!submissionResult.success) {
     printIssues('Market contribution', submissionResult.error)
-    process.exitCode = 1
-  } else if (submissionResult.data.basedOnDatasetVersion !== datasetResult.data.datasetVersion) {
-    console.error(`Contribution targets dataset ${submissionResult.data.basedOnDatasetVersion}, but the current dataset is ${datasetResult.data.datasetVersion}.`)
     process.exitCode = 1
   } else {
     const known = new Set(datasetResult.data.markets.map((market) => `${market.retailer}:${market.marketId}`))

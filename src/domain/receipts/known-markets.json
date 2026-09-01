@@ -1,12 +1,77 @@
 {
-  "schemaVersion": 1,
-  "datasetVersion": "2026-09-01",
+  "schemaVersion": 2,
   "markets": [
-    { "retailer": "rewe", "marketId": "0011", "name": "REWE Philipp Menz OHG", "street": "Grindelallee", "houseNumber": "40-44", "zip": "20146", "city": "Hamburg", "country": "DE", "lat": null, "long": null, "provenance": { "status": "reviewed", "method": "legacy-curated", "reviewedAt": null, "sourceRef": null } },
-    { "retailer": "rewe", "marketId": "0029", "name": "REWE City", "street": "Markt", "houseNumber": "29 - 31", "zip": "52062", "city": "Aachen", "country": "DE", "lat": null, "long": null, "provenance": { "status": "reviewed", "method": "legacy-curated", "reviewedAt": null, "sourceRef": null } },
-    { "retailer": "rewe", "marketId": "0081", "name": "REWE Markt GmbH", "street": "Kapuzinergraben", "houseNumber": "19f", "zip": "52062", "city": "Aachen", "country": "DE", "lat": null, "long": null, "provenance": { "status": "reviewed", "method": "legacy-curated", "reviewedAt": null, "sourceRef": null } },
-    { "retailer": "rewe", "marketId": "0082", "name": "REWE Markt GmbH", "street": "Pontdriesch", "houseNumber": "10-12", "zip": "52062", "city": "Aachen", "country": "DE", "lat": null, "long": null, "provenance": { "status": "reviewed", "method": "legacy-curated", "reviewedAt": null, "sourceRef": null } },
-    { "retailer": "rewe", "marketId": "7051", "name": "J. Stenten GmbH & Co. KG", "street": "Krugenofen", "houseNumber": "62 -70", "zip": "52066", "city": "Aachen", "country": "DE", "lat": null, "long": null, "provenance": { "status": "reviewed", "method": "legacy-curated", "reviewedAt": null, "sourceRef": null } },
-    { "retailer": "rewe", "marketId": "8319", "name": "REWE Maxim Nowokreschenow oHG, 040/181078430", "street": "Krüsistraße", "houseNumber": "7", "zip": "22305", "city": "Hamburg", "country": "DE", "lat": null, "long": null, "provenance": { "status": "reviewed", "method": "legacy-curated", "reviewedAt": null, "sourceRef": null } }
+    {
+      "retailer": "rewe",
+      "marketId": "0011",
+      "name": "REWE Philipp Menz OHG",
+      "street": "Grindelallee",
+      "houseNumber": "40-44",
+      "zip": "20146",
+      "city": "Hamburg",
+      "country": "DE",
+      "lat": null,
+      "long": null
+    },
+    {
+      "retailer": "rewe",
+      "marketId": "0029",
+      "name": "REWE City",
+      "street": "Markt",
+      "houseNumber": "29 - 31",
+      "zip": "52062",
+      "city": "Aachen",
+      "country": "DE",
+      "lat": null,
+      "long": null
+    },
+    {
+      "retailer": "rewe",
+      "marketId": "0081",
+      "name": "REWE Markt GmbH",
+      "street": "Kapuzinergraben",
+      "houseNumber": "19f",
+      "zip": "52062",
+      "city": "Aachen",
+      "country": "DE",
+      "lat": null,
+      "long": null
+    },
+    {
+      "retailer": "rewe",
+      "marketId": "0082",
+      "name": "REWE Markt GmbH",
+      "street": "Pontdriesch",
+      "houseNumber": "10-12",
+      "zip": "52062",
+      "city": "Aachen",
+      "country": "DE",
+      "lat": null,
+      "long": null
+    },
+    {
+      "retailer": "rewe",
+      "marketId": "7051",
+      "name": "J. Stenten GmbH & Co. KG",
+      "street": "Krugenofen",
+      "houseNumber": "62 -70",
+      "zip": "52066",
+      "city": "Aachen",
+      "country": "DE",
+      "lat": null,
+      "long": null
+    },
+    {
+      "retailer": "rewe",
+      "marketId": "8319",
+      "name": "REWE Maxim Nowokreschenow oHG",
+      "street": "Krüsistraße",
+      "houseNumber": "7",
+      "zip": "22305",
+      "city": "Hamburg",
+      "country": "DE",
+      "lat": null,
+      "long": null
+    }
   ]
 }

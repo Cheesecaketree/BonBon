@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-export const MARKET_DATASET_SCHEMA_VERSION = 1 as const
-export const MARKET_CONTRIBUTION_SCHEMA_VERSION = 1 as const
+export const MARKET_DATASET_SCHEMA_VERSION = 2 as const
+export const MARKET_CONTRIBUTION_SCHEMA_VERSION = 2 as const
 
 export function canonicalizeMarketId(raw: string): string | undefined {
   const trimmed = raw.trim()
@@ -41,22 +41,10 @@ export const completeMarketMappingSchema = marketDataSchema.superRefine((value, 
 export const canonicalMarketSchema = marketDataSchema.extend({
   retailer: z.literal('rewe'),
   marketId: canonicalMarketIdSchema,
-  provenance: z.object({
-    status: z.literal('reviewed'),
-    method: z.enum(['community-receipt', 'legacy-curated']),
-    reviewedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-    sourceRef: z.string().trim().min(1).nullable(),
-  }).strict(),
-}).strict().superRefine((market, context) => {
-  if (market.provenance.method === 'community-receipt') {
-    if (!market.provenance.reviewedAt) context.addIssue({ code: 'custom', path: ['provenance', 'reviewedAt'], message: 'Community records require a review date.' })
-    if (!market.provenance.sourceRef) context.addIssue({ code: 'custom', path: ['provenance', 'sourceRef'], message: 'Community records require an issue or pull-request reference.' })
-  }
-})
+}).strict()
 
 export const marketDatasetSchema = z.object({
   schemaVersion: z.literal(MARKET_DATASET_SCHEMA_VERSION),
-  datasetVersion: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   markets: z.array(canonicalMarketSchema),
 }).strict().superRefine((dataset, context) => {
   const seen = new Set<string>()
@@ -72,15 +60,13 @@ export const marketDatasetSchema = z.object({
   }
 })
 
-export const marketContributionSchema = z.object({
+export const marketContributionSchema = completeMarketMappingSchema.extend({
   retailer: z.literal('rewe'),
   marketId: canonicalMarketIdSchema,
-  mapping: completeMarketMappingSchema,
 }).strict()
 
 export const marketContributionFileSchema = z.object({
   schemaVersion: z.literal(MARKET_CONTRIBUTION_SCHEMA_VERSION),
-  basedOnDatasetVersion: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   markets: z.array(marketContributionSchema).min(1),
 }).strict().superRefine((submission, context) => {
   const seen = new Set<string>()

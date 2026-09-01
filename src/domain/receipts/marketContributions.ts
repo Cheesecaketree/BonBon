@@ -85,12 +85,10 @@ export function clearLocalMarketMatches(): void {
 }
 
 export function createMarketContributionFile(
-  basedOnDatasetVersion: string,
   markets: MarketContribution[],
 ): MarketContributionFile {
   return marketContributionFileSchema.parse({
-    schemaVersion: 1,
-    basedOnDatasetVersion,
+    schemaVersion: 2,
     markets: [...markets].sort((a, b) => a.marketId.localeCompare(b.marketId, undefined, { numeric: true })),
   })
 }
