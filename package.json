@@ -1,0 +1,36 @@
+{
+  "name": "bonbon",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run validate:markets && vue-tsc -b && vite build",
+    "validate:markets": "vite-node scripts/validate_market_data.mjs",
+    "validate:contribution": "vite-node scripts/validate_market_data.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "echarts": "^6.0.0",
+    "idb": "^8.0.3",
+    "pdfjs-dist": "^6.2.108",
+    "vue": "^3.5.21",
+    "vue-echarts": "^8.0.1",
+    "vue-i18n": "^11.1.12",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/test-utils": "^2.4.6",
+    "fake-indexeddb": "^6.2.2",
+    "happy-dom": "^20.12.0",
+    "typescript": "~5.9.2",
+    "vite": "^7.1.3",
+    "vitest": "^3.2.4",
+    "vue-tsc": "^3.0.6"
+  }
+}
