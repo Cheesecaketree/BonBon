@@ -257,6 +257,7 @@ button.calendar-cell.active { cursor: pointer; }
 .market-help-card-heading { display: flex; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
 .market-help-card-heading > div { display: flex; align-items: center; gap: 10px; }
 .market-help-card-heading h2 { margin: 0; font-size: 19px; }
+.market-help-card-heading .market-card-title { color: var(--berry); font-weight: 700; }
 .market-help-card-heading > span { color: #756b6b; font-size: 12px; }
 .market-help-card-heading .dataset-status { padding: 6px 9px; border-radius: 999px; color: var(--berry); background: rgba(155,40,72,.09); font-weight: 750; white-space: nowrap; }
 .receipt-count-line { margin: -9px 0 16px; color: #756b6b; font-size: 12px; }
@@ -267,6 +268,11 @@ button.calendar-cell.active { cursor: pointer; }
 .receipt-reference-heading strong { font-size: 13px; }
 .receipt-reference-heading span { padding: 4px 7px; border-radius: 999px; color: #756b6b; background: rgba(255,255,255,.75); font-size: 10px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
 .receipt-reference-heading p, .receipt-reference-state { margin: 7px 0 0; color: #756b6b; font-size: 11px; line-height: 1.55; }
+.receipt-unavailable { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 14px; align-items: start; background: rgba(155,40,72,.065); }
+.receipt-unavailable-icon { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; color: white; background: var(--berry); font-size: 16px; font-weight: 850; }
+.receipt-unavailable h3 { margin: 1px 0 7px; font-family: inherit; font-size: 15px; }
+.receipt-unavailable p { max-width: 650px; margin: 0; color: #655b5b; font-size: 12px; line-height: 1.55; }
+.receipt-unavailable .button { min-height: 40px; margin-top: 14px; }
 .receipt-reference-item { margin-top: 13px; }
 .receipt-reference-item small { display: block; margin-bottom: 5px; color: #887d7d; font-size: 10px; }
 .receipt-reference-item pre { overflow-x: auto; margin: 0; padding: 12px 13px; border: 1px solid var(--line); border-radius: 9px; color: #544a4a; background: rgba(255,255,255,.8); font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
@@ -381,7 +387,6 @@ button.calendar-cell.active { cursor: pointer; }
 .market-card.verified-card { background: #fdfbf7; border-color: rgba(36,29,29,.12); }
 .market-card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
 .market-card-id-row { display: flex; align-items: center; gap: 8px; }
-.market-id-badge { font-family: Georgia, serif; font-size: 20px; font-weight: 700; color: var(--berry); }
 .status-badge { padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
 .status-badge.verified { background: #e0e9f8; color: #274b87; border: 1px solid rgba(39,75,135,.2); }
 .status-badge.custom { background: #d4ebd9; color: #235c3b; }

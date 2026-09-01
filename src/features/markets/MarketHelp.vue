@@ -14,7 +14,7 @@ import {
 import { completeMarketMappingSchema, type MarketContribution, type MarketData } from '../../domain/receipts/marketSchema'
 
 const props = defineProps<{ receipts: Receipt[]; pdfFiles?: Map<string, File> }>()
-defineEmits<{ navigate: [] }>()
+defineEmits<{ navigate: []; uploadReceipts: [] }>()
 const { t } = useI18n()
 const dataset = getMarketDataset()
 const storedMatches = ref(getStoredLocalMarketMatches())
@@ -28,6 +28,14 @@ const receiptReferences = ref<Record<string, ReceiptReference[]>>({})
 const referencesLoading = ref(false)
 const viewer = ref<{ filename: string; url: string } | null>(null)
 let referenceLoadVersion = 0
+const noAutofillAttributes = {
+  autocomplete: 'off',
+  'data-1p-ignore': 'true',
+  'data-lpignore': 'true',
+  'data-bwignore': 'true',
+  'data-protonpass-ignore': 'true',
+  'data-form-type': 'other',
+}
 
 const receiptMarkets = computed(() => {
   const grouped = new Map<string, Receipt[]>()
@@ -52,21 +60,20 @@ watch(
     referencesLoading.value = true
     const next: Record<string, ReceiptReference[]> = {}
     const { extractPdfText } = await import('../../services/pdf/extractText')
-    await Promise.all(missingMarkets.value.flatMap((market) => market.receipts.map(async (receipt) => {
-      const file = files.get(receipt.filename)
-      if (!file) return
-      try {
-        const excerpt = extractMarketReference(await extractPdfText(file))
-        if (!excerpt) return
-        const references = next[market.id] || []
-        if (!references.some((reference) => reference.filename === receipt.filename)) {
-          references.push({ filename: receipt.filename, excerpt })
-          next[market.id] = references
+    await Promise.all(missingMarkets.value.map(async (market) => {
+      for (const receipt of market.receipts) {
+        const file = files.get(receipt.filename)
+        if (!file) continue
+        try {
+          const excerpt = extractMarketReference(await extractPdfText(file))
+          if (!excerpt) continue
+          next[market.id] = [{ filename: receipt.filename, excerpt }]
+          break
+        } catch {
+          // Try the next available receipt before falling back to the PDF links.
         }
-      } catch {
-        // The receipt can still be opened even if its text could not be extracted.
       }
-    })))
+    }))
     if (version === referenceLoadVersion) {
       receiptReferences.value = next
       referencesLoading.value = false
@@ -139,7 +146,7 @@ onBeforeUnmount(() => {
 function draftToMarketData(id: string): MarketData {
   const draft = getDraft(id)
   return {
-    name: draft.name.trim(),
+    name: draft.name.trim() || 'REWE',
     street: draft.street.trim() || null,
     houseNumber: draft.houseNumber.trim() || null,
     zip: draft.zip.trim() || null,
@@ -186,10 +193,10 @@ function reset(id: string) {
 
 const contributions = computed<MarketContribution[]>(() => missingMarkets.value.flatMap((market) => {
   const mapping = storedMatches.value[market.id]
-  return mapping ? [{ retailer: 'rewe' as const, marketId: market.id, mapping }] : []
+  return mapping ? [{ retailer: 'rewe' as const, marketId: market.id, ...mapping }] : []
 }))
 const contributionFile = computed(() => contributions.value.length
-  ? createMarketContributionFile(dataset.datasetVersion, contributions.value)
+  ? createMarketContributionFile(contributions.value)
   : null)
 const contributionJson = computed(() => contributionFile.value ? serializeMarketContribution(contributionFile.value) : '')
 const mailtoLink = computed(() => {
@@ -228,7 +235,6 @@ function downloadContribution() {
     </header>
     <aside class="market-data-explainer">
       <div><span class="market-data-icon" aria-hidden="true">?</span><div><h2>{{ t('marketDataWhyTitle') }}</h2><p>{{ t('marketDataWhyCopy') }}</p></div></div>
-      <p class="market-data-boundary">{{ t('marketDataBoundary') }}</p>
     </aside>
 
     <div v-if="!receipts.length" class="market-help-empty"><h2>{{ t('marketHelpNoReceiptsTitle') }}</h2><p>{{ t('marketHelpNoReceiptsCopy') }}</p></div>
@@ -236,11 +242,20 @@ function downloadContribution() {
     <div v-else class="market-help-list">
       <p class="market-missing-summary" role="status">{{ t('marketDatasetSummary', { count: missingMarkets.length, total: receiptMarkets.length }) }}</p>
       <article v-for="market in missingMarkets" :key="market.id" class="market-help-card">
-        <div class="market-help-card-heading"><div><span class="market-id-badge">#{{ market.id }}</span><h2>{{ t('market') }} {{ market.id }}</h2></div><span class="dataset-status missing">{{ t('missingFromDataset') }}</span></div>
+        <div class="market-help-card-heading"><div><h2 class="market-card-title">{{ t('market') }} {{ market.id }}</h2></div><span class="dataset-status missing">{{ t('missingFromDataset') }}</span></div>
         <p class="receipt-count-line">{{ t('marketSeenOnReceipts', { count: market.count }) }}</p>
         <p class="local-save-status" :class="{ saved: storedMatches[market.id] }"><span aria-hidden="true">{{ storedMatches[market.id] ? '✓' : '○' }}</span> {{ storedMatches[market.id] ? t('localMatchSaved') : t('localMatchNotSaved') }}</p>
 
-        <section class="receipt-reference">
+        <section v-if="!availableReceipts(market.receipts).length" class="receipt-reference receipt-unavailable">
+          <div class="receipt-unavailable-icon" aria-hidden="true">!</div>
+          <div>
+            <h3>{{ t('receiptUnavailableTitle') }}</h3>
+            <p>{{ t('receiptUnavailableCopy') }}</p>
+            <button class="button secondary" type="button" @click="$emit('uploadReceipts')">{{ t('reuploadReceipts') }}</button>
+          </div>
+        </section>
+
+        <section v-else class="receipt-reference">
           <div class="receipt-reference-heading">
             <div><strong>{{ t('receiptReferenceTitle') }}</strong><span>{{ t('localReferenceBadge') }}</span></div>
             <p>{{ t('receiptReferenceCopy') }}</p>
@@ -255,7 +270,7 @@ function downloadContribution() {
             </div>
           </div>
           <div v-if="!referencesLoading && !receiptReferences[market.id]?.length" class="receipt-reference-state">
-            <p>{{ availableReceipts(market.receipts).length ? t('referenceNotFound') : t('receiptPdfUnavailable') }}</p>
+            <p>{{ t('referenceNotFound') }}</p>
             <button v-for="receipt in availableReceipts(market.receipts)" :key="receipt.filename" class="text-button" type="button" @click="openReceipt(receipt)">{{ t('openReceiptPdfNamed', { filename: receipt.filename }) }}</button>
           </div>
         </section>
@@ -264,15 +279,15 @@ function downloadContribution() {
           <legend>{{ t('marketDetailsLabel') }}</legend>
           <p>{{ t('marketDetailsFormCopy') }}</p>
           <label :for="`market-name-${market.id}`">{{ t('fieldName') }}</label>
-          <input :id="`market-name-${market.id}`" :value="getDraft(market.id).name" required autocomplete="organization" @input="updateDraft(market.id, 'name', ($event.target as HTMLInputElement).value)" />
+          <input :id="`market-name-${market.id}`" v-bind="noAutofillAttributes" :value="getDraft(market.id).name" placeholder="REWE" @input="updateDraft(market.id, 'name', ($event.target as HTMLInputElement).value)" />
           <div class="market-form-row street">
-            <div><label :for="`market-street-${market.id}`">{{ t('fieldStreet') }}</label><input :id="`market-street-${market.id}`" :value="getDraft(market.id).street" required autocomplete="address-line1" @input="updateDraft(market.id, 'street', ($event.target as HTMLInputElement).value)" /></div>
-            <div><label :for="`market-house-${market.id}`">{{ t('fieldHouseNumber') }}</label><input :id="`market-house-${market.id}`" :value="getDraft(market.id).houseNumber" required @input="updateDraft(market.id, 'houseNumber', ($event.target as HTMLInputElement).value)" /></div>
+            <div><label :for="`market-street-${market.id}`">{{ t('fieldStreet') }}</label><input :id="`market-street-${market.id}`" v-bind="noAutofillAttributes" :value="getDraft(market.id).street" required @input="updateDraft(market.id, 'street', ($event.target as HTMLInputElement).value)" /></div>
+            <div><label :for="`market-house-${market.id}`">{{ t('fieldHouseNumber') }}</label><input :id="`market-house-${market.id}`" v-bind="noAutofillAttributes" :value="getDraft(market.id).houseNumber" required @input="updateDraft(market.id, 'houseNumber', ($event.target as HTMLInputElement).value)" /></div>
           </div>
           <div class="market-form-row city">
-            <div><label :for="`market-zip-${market.id}`">{{ t('fieldZip') }}</label><input :id="`market-zip-${market.id}`" :value="getDraft(market.id).zip" required inputmode="numeric" pattern="[0-9]{5}" autocomplete="postal-code" @input="updateDraft(market.id, 'zip', ($event.target as HTMLInputElement).value)" /></div>
-            <div><label :for="`market-city-${market.id}`">{{ t('fieldCity') }}</label><input :id="`market-city-${market.id}`" :value="getDraft(market.id).city" required autocomplete="address-level2" @input="updateDraft(market.id, 'city', ($event.target as HTMLInputElement).value)" /></div>
-            <div><label :for="`market-country-${market.id}`">{{ t('fieldCountry') }}</label><input :id="`market-country-${market.id}`" :value="getDraft(market.id).country" required minlength="2" maxlength="2" autocomplete="country" @input="updateDraft(market.id, 'country', ($event.target as HTMLInputElement).value)" /></div>
+            <div><label :for="`market-zip-${market.id}`">{{ t('fieldZip') }}</label><input :id="`market-zip-${market.id}`" v-bind="noAutofillAttributes" :value="getDraft(market.id).zip" required inputmode="numeric" pattern="[0-9]{5}" @input="updateDraft(market.id, 'zip', ($event.target as HTMLInputElement).value)" /></div>
+            <div><label :for="`market-city-${market.id}`">{{ t('fieldCity') }}</label><input :id="`market-city-${market.id}`" v-bind="noAutofillAttributes" :value="getDraft(market.id).city" required @input="updateDraft(market.id, 'city', ($event.target as HTMLInputElement).value)" /></div>
+            <div><label :for="`market-country-${market.id}`">{{ t('fieldCountry') }}</label><input :id="`market-country-${market.id}`" v-bind="noAutofillAttributes" :value="getDraft(market.id).country" required minlength="2" maxlength="2" @input="updateDraft(market.id, 'country', ($event.target as HTMLInputElement).value)" /></div>
           </div>
         </fieldset>
         <div class="market-help-actions">
@@ -287,7 +302,7 @@ function downloadContribution() {
     <details v-if="contributionFile" class="contribution-details" open>
       <summary>{{ t('optionalContribution') }}</summary><p>{{ t('optionalContributionCopy') }}</p>
       <div class="contribution-actions"><button class="button primary" type="button" @click="downloadContribution">{{ t('downloadContribution') }}</button><button class="text-button" type="button" @click="copyContribution">{{ copied ? t('copied') : t('copyContribution') }}</button><a class="text-button" :href="mailtoLink">{{ t('contributeByEmail') }}</a></div>
-      <p>{{ t('contributionValidationCopy', { version: dataset.datasetVersion }) }}</p>
+      <p>{{ t('contributionValidationCopy') }}</p>
     </details>
 
     <div v-if="viewer" class="receipt-viewer-backdrop" @click.self="closeReceipt">
