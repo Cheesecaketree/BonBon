@@ -7,17 +7,17 @@ import {
   type MarketData,
 } from './marketSchema'
 
-const DRAFTS_STORAGE_KEY = 'bonbon-market-contribution-drafts'
-const LEGACY_OVERRIDES_STORAGE_KEY = 'bonbon-market-overrides'
+const LOCAL_MATCHES_STORAGE_KEY = 'bonbon-local-market-matches'
+const LEGACY_STORAGE_KEYS = ['bonbon-market-contribution-drafts', 'bonbon-market-overrides']
 
-export type MarketContributionDrafts = Record<string, MarketData>
+export type LocalMarketMatches = Record<string, MarketData>
 
-function parseDraftRecord(raw: string | null): MarketContributionDrafts {
+function parseStoredMatches(raw: string | null): LocalMarketMatches {
   if (!raw) return {}
   try {
     const parsed = JSON.parse(raw) as unknown
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
-    const result: MarketContributionDrafts = {}
+    const result: LocalMarketMatches = {}
     for (const [rawId, value] of Object.entries(parsed)) {
       const marketId = canonicalizeMarketId(rawId)
       const validation = completeMarketMappingSchema.safeParse(value)
@@ -29,54 +29,56 @@ function parseDraftRecord(raw: string | null): MarketContributionDrafts {
   }
 }
 
-export function getStoredContributionDrafts(): MarketContributionDrafts {
-  const current = parseDraftRecord(localStorage.getItem(DRAFTS_STORAGE_KEY))
+export function getStoredLocalMarketMatches(): LocalMarketMatches {
+  const current = parseStoredMatches(localStorage.getItem(LOCAL_MATCHES_STORAGE_KEY))
   if (Object.keys(current).length) return current
 
-  const legacy = parseDraftRecord(localStorage.getItem(LEGACY_OVERRIDES_STORAGE_KEY))
-  if (Object.keys(legacy).length) {
+  for (const key of LEGACY_STORAGE_KEYS) {
+    const legacy = parseStoredMatches(localStorage.getItem(key))
+    if (!Object.keys(legacy).length) continue
     try {
-      localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(legacy))
-      localStorage.removeItem(LEGACY_OVERRIDES_STORAGE_KEY)
+      localStorage.setItem(LOCAL_MATCHES_STORAGE_KEY, JSON.stringify(legacy))
+      for (const legacyKey of LEGACY_STORAGE_KEYS) localStorage.removeItem(legacyKey)
     } catch {
-      // The validated legacy data can still be used for this session.
+      // The validated legacy mappings can still be used for this session.
     }
+    return legacy
   }
-  return legacy
+  return {}
 }
 
-export function saveContributionDraft(marketId: string, value: MarketData): { ok: true } | { ok: false; message: string } {
+export function saveLocalMarketMatch(marketId: string, value: MarketData): { ok: true } | { ok: false; message: string } {
   const canonicalId = canonicalizeMarketId(marketId)
   const validation = completeMarketMappingSchema.safeParse(value)
   if (!canonicalId || !validation.success) {
     return { ok: false, message: validation.success ? 'Invalid market ID.' : validation.error.issues[0]?.message || 'Invalid market mapping.' }
   }
   try {
-    const drafts = getStoredContributionDrafts()
-    drafts[canonicalId] = validation.data
-    localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(drafts))
+    const matches = getStoredLocalMarketMatches()
+    matches[canonicalId] = validation.data
+    localStorage.setItem(LOCAL_MATCHES_STORAGE_KEY, JSON.stringify(matches))
     return { ok: true }
   } catch {
-    return { ok: false, message: 'The contribution draft could not be saved in this browser.' }
+    return { ok: false, message: 'The local market match could not be saved in this browser.' }
   }
 }
 
-export function removeContributionDraft(marketId: string): void {
+export function removeLocalMarketMatch(marketId: string): void {
   const canonicalId = canonicalizeMarketId(marketId)
   if (!canonicalId) return
   try {
-    const drafts = getStoredContributionDrafts()
-    delete drafts[canonicalId]
-    localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(drafts))
+    const matches = getStoredLocalMarketMatches()
+    delete matches[canonicalId]
+    localStorage.setItem(LOCAL_MATCHES_STORAGE_KEY, JSON.stringify(matches))
   } catch {
-    // Ignore unavailable browser storage; the UI reload exposes the failure.
+    // Ignore unavailable browser storage; a reload exposes the failure.
   }
 }
 
-export function clearContributionDrafts(): void {
+export function clearLocalMarketMatches(): void {
   try {
-    localStorage.removeItem(DRAFTS_STORAGE_KEY)
-    localStorage.removeItem(LEGACY_OVERRIDES_STORAGE_KEY)
+    localStorage.removeItem(LOCAL_MATCHES_STORAGE_KEY)
+    for (const key of LEGACY_STORAGE_KEYS) localStorage.removeItem(key)
   } catch {
     // Ignore unavailable browser storage.
   }

@@ -25,20 +25,6 @@ export function receiptId(localTimestamp: string, marketId: string, receiptNumbe
   return `rewe:${localTimestamp}:${marketId}:${receiptNumber}`
 }
 
-function extractMarketHeaderExcerpt(text: string): string | undefined {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-  const headerLines: string[] = []
-  for (const line of lines.slice(0, 5)) {
-    if (/^(EUR|SUMME|TSE-|Markt:|Bon-Nr|Kasse:|\*+|-+|=+)/i.test(line)) break
-    if (/\d+,\d{2}\s+[AB]$/i.test(line)) break
-    if (/^(Tel|Fax|USt|St\.-Nr|Steuernummer|UID|EC-|Girocard)/i.test(line)) continue
-    headerLines.push(line)
-  }
-  if (!headerLines.length) return undefined
-  const cleaned = headerLines.join(', ').replace(/\s+/g, ' ').trim()
-  return cleaned.length >= 4 ? cleaned : undefined
-}
-
 export function parseReweReceipt(text: string, filename: string): ParseResult {
   const timestamp = text.match(TSE_TIMESTAMP)?.[1] ?? fallbackTimestamp(text)
   const marketId = canonicalizeMarketId(text.match(MARKET)?.[1] || '')
@@ -58,15 +44,12 @@ export function parseReweReceipt(text: string, filename: string): ParseResult {
     return { ok: false, missing }
   }
 
-  const marketHeaderExcerpt = extractMarketHeaderExcerpt(text)
-
   const receipt: Receipt = {
     id: receiptId(timestamp, marketId, receiptNumber),
     source: 'rewe',
     filename,
     localTimestamp: timestamp,
     marketId,
-    ...(marketHeaderExcerpt ? { marketHeaderExcerpt } : {}),
     registerId,
     receiptNumber,
     totalCents,

@@ -33,19 +33,13 @@ describe('local storage and interchange', () => {
     expect((await loadPdfFiles()).size).toBe(0)
   })
   it('round-trips the versioned JSON shape', () => expect(parseReceiptExport(serializeReceipts([receipt]))).toEqual([receipt]))
-  it('keeps header evidence local but omits it from ordinary receipt backups', async () => {
-    const withEvidence: Receipt = { ...receipt, marketHeaderExcerpt: 'REWE Example, Person Name, Example Street 1' }
-    await saveReceipts([withEvidence])
-    expect((await loadReceipts())[0].marketHeaderExcerpt).toBe(withEvidence.marketHeaderExcerpt)
-    const backup = serializeReceipts([withEvidence])
-    expect(backup).not.toContain('marketHeaderExcerpt')
-    expect(backup).not.toContain('Person Name')
-    expect(parseReceiptExport(backup)).toEqual([receipt])
-  })
-  it('migrates the legacy marketName field when importing old backups', () => {
-    const legacy = JSON.stringify({ schemaVersion: 1, exportedAt: '2026-09-01T00:00:00Z', receipts: [{ ...receipt, marketName: 'Legacy header' }] })
-    expect(parseReceiptExport(legacy)[0]).toMatchObject({ marketHeaderExcerpt: 'Legacy header' })
-    expect(parseReceiptExport(legacy)[0].marketName).toBeUndefined()
+  it('drops obsolete raw header fields when importing old backups', () => {
+    const legacy = JSON.stringify({
+      schemaVersion: 1,
+      exportedAt: '2026-09-01T00:00:00Z',
+      receipts: [{ ...receipt, marketName: 'Legacy header', marketHeaderExcerpt: 'Person Name, Example Street 1' }],
+    })
+    expect(parseReceiptExport(legacy)).toEqual([receipt])
   })
   it('rejects unknown JSON versions', () => expect(() => parseReceiptExport('{"schemaVersion":2,"exportedAt":"now","receipts":[]}')).toThrow())
 })

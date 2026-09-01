@@ -7,8 +7,6 @@ const receiptSchema = z.object({
   filename: z.string().min(1),
   localTimestamp: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/),
   marketId: z.string().regex(/^\d+$/),
-  marketHeaderExcerpt: z.string().optional(),
-  marketName: z.string().optional(),
   registerId: z.string().regex(/^\d+$/),
   receiptNumber: z.string().regex(/^\d+$/),
   totalCents: z.number().int(),
@@ -27,26 +25,16 @@ export interface BonBonExportV1 {
 }
 
 export function serializeReceipts(receipts: Receipt[]) {
-  const privateReceipts = receipts.map((receipt) => {
-    const { marketHeaderExcerpt: _headerExcerpt, marketName: _legacyMarketName, ...rest } = receipt
-    return rest
-  })
   const payload: BonBonExportV1 = {
     schemaVersion: 1,
     exportedAt: new Date().toISOString(),
-    receipts: privateReceipts,
+    receipts,
   }
   return JSON.stringify(payload, null, 2)
 }
 
 export function parseReceiptExport(value: string): Receipt[] {
-  return exportSchema.parse(JSON.parse(value)).receipts.map((receipt) => {
-    if (!receipt.marketHeaderExcerpt && receipt.marketName) {
-      const { marketName, ...rest } = receipt
-      return { ...rest, marketHeaderExcerpt: marketName }
-    }
-    return receipt
-  })
+  return exportSchema.parse(JSON.parse(value)).receipts
 }
 
 export function downloadReceiptExport(receipts: Receipt[]) {

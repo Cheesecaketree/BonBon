@@ -6,12 +6,17 @@ import {
   getMarketDisplayName,
   getMarketName,
   getMarketShortName,
+  getMarketSource,
   isKnownMarket,
-  parseMarketAddressString,
 } from '../../src/domain/receipts/markets'
-import { canonicalizeMarketId, marketContributionFileSchema, marketDatasetSchema } from '../../src/domain/receipts/marketSchema'
+import { canonicalizeMarketId, marketContributionFileSchema, marketDatasetSchema, type MarketData } from '../../src/domain/receipts/marketSchema'
 
-describe('reviewed market resolution and validation', () => {
+const localMarket: MarketData = {
+  name: 'REWE Beispiel', street: 'Hauptstr.', houseNumber: '2', zip: '12345', city: 'Berlin',
+  country: 'DE', lat: null, long: null,
+}
+
+describe('market resolution and validation', () => {
   it('resolves reviewed market data with a structured address', () => {
     expect(getMarketData('0011')).toEqual({
       name: 'REWE Philipp Menz OHG', street: 'Grindelallee', houseNumber: '40-44',
@@ -30,20 +35,24 @@ describe('reviewed market resolution and validation', () => {
     expect(getMarketDisplayName('11')).toContain('(#0011)')
   })
 
-  it('never treats an extracted header or local draft as a reviewed match', () => {
-    expect(getMarketData('9999')).toBeUndefined()
-    expect(getMarketName('9999')).toBeUndefined()
-    expect(getMarketShortName('9999', 'Markt')).toBe('Markt 9999')
-    expect(getMarketDisplayName('9999', 'Market')).toBe('Market 9999')
+  it('uses a local match for an unknown ID and reports its source', () => {
+    const localMatches = { '9999': localMarket }
+    expect(getMarketSource('9999')).toBe('unknown')
+    expect(getMarketSource('9999', localMatches)).toBe('local')
+    expect(getMarketData('9999', localMatches)).toEqual(localMarket)
+    expect(getMarketName('9999', localMatches)).toBe('REWE Beispiel, Hauptstr. 2, 12345 Berlin')
+    expect(getMarketShortName('9999', 'Markt', localMatches)).toBe('REWE Beispiel, Hauptstr. 2, Berlin')
+    expect(getMarketDisplayName('9999', 'Market', localMatches)).toBe('REWE Beispiel, Hauptstr. 2, 12345 Berlin (#9999)')
   })
 
-  it('parses address text only as an editable starting point', () => {
-    const result = parseMarketAddressString('REWE Genschel ohG, Weberstr. 62, 49477 Ibbenbüren')
-    expect(result).toEqual({
-      name: 'REWE Genschel ohG', street: 'Weberstr.', houseNumber: '62', zip: '49477',
-      city: 'Ibbenbüren', country: 'DE', lat: null, long: null,
-    })
-    expect(formatMarketFullName(result)).toContain('49477 Ibbenbüren')
+  it('always gives the reviewed dataset precedence over a local value', () => {
+    const localMatches = { '0011': localMarket }
+    expect(getMarketSource('0011', localMatches)).toBe('dataset')
+    expect(getMarketData('0011', localMatches)?.name).toBe('REWE Philipp Menz OHG')
+  })
+
+  it('formats complete structured market data', () => {
+    expect(formatMarketFullName(localMarket)).toBe('REWE Beispiel, Hauptstr. 2, 12345 Berlin')
   })
 
   it('loads a versioned dataset that passes the shared schema', () => {
@@ -53,14 +62,17 @@ describe('reviewed market resolution and validation', () => {
     expect(dataset.markets.every((market) => market.provenance.status === 'reviewed')).toBe(true)
   })
 
-  it('rejects unreviewed evidence and incomplete submissions', () => {
+  it('accepts complete contributions and rejects incomplete or obsolete evidence fields', () => {
     const base = { schemaVersion: 1, basedOnDatasetVersion: '2026-09-01' }
     expect(marketContributionFileSchema.safeParse({ ...base, markets: [{
-      retailer: 'rewe', marketId: '9999', mapping: null,
-      evidence: { headerExcerpts: ['Some receipt header'], personalDataReviewed: false },
+      retailer: 'rewe', marketId: '9999', mapping: localMarket,
+    }] }).success).toBe(true)
+    expect(marketContributionFileSchema.safeParse({ ...base, markets: [{
+      retailer: 'rewe', marketId: '9999', mapping: { ...localMarket, city: null },
     }] }).success).toBe(false)
     expect(marketContributionFileSchema.safeParse({ ...base, markets: [{
-      retailer: 'rewe', marketId: '9999', mapping: { name: 'REWE', street: null, houseNumber: null, zip: null, city: null, country: 'DE', lat: null, long: null }, evidence: null,
+      retailer: 'rewe', marketId: '9999', mapping: localMarket,
+      evidence: { headerExcerpts: ['Some receipt header'], personalDataReviewed: true },
     }] }).success).toBe(false)
   })
 })

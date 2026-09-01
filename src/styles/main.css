@@ -109,6 +109,8 @@ button:disabled { cursor: wait; opacity: .55; }
 .market-item-label { display: flex; gap: 9px; align-items: center; font-size: 13px; line-height: 1.35; cursor: pointer; min-width: 0; flex: 1; }
 .market-item-label input { accent-color: var(--berry); flex-shrink: 0; }
 .market-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.local-match-indicator { flex-shrink: 0; padding: 4px 7px; border: 1px solid rgba(155,40,72,.2); border-radius: 999px; color: var(--berry); background: rgba(155,40,72,.07); font-size: 9px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.local-match-indicator:hover { background: rgba(155,40,72,.14); }
 .edit-market-button { flex-shrink: 0; width: 24px; height: 24px; border: 0; border-radius: 6px; background: rgba(155,40,72,.08); color: var(--berry); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s; }
 .edit-market-button:hover { background: rgba(155,40,72,.18); }
 .market-export-btn { margin-top: 4px; padding: 8px 12px; border: 1px dashed var(--berry); border-radius: 8px; background: rgba(155,40,72,.04); color: var(--berry); font-size: 11px; font-weight: 750; cursor: pointer; text-align: center; transition: background .15s; }
@@ -260,8 +262,6 @@ button.calendar-cell.active { cursor: pointer; }
 .market-help-card-heading > span { color: #756b6b; font-size: 12px; }
 .market-help-card-heading .dataset-status { padding: 6px 9px; border-radius: 999px; color: var(--berry); background: rgba(155,40,72,.09); font-weight: 750; white-space: nowrap; }
 .receipt-count-line { margin: -9px 0 16px; color: #756b6b; font-size: 12px; }
-.market-extracted { padding: 12px 14px; border-radius: 10px; background: var(--cream); color: #655b5b; font-size: 13px; line-height: 1.5; }
-.market-extracted small { display: block; margin-top: 5px; color: #887d7d; }
 .local-save-status { display: flex; align-items: center; gap: 6px; margin: 12px 0 -5px; color: #887d7d; font-size: 12px; font-weight: 750; }
 .local-save-status.saved { color: #3f845f; }
 .market-address-form { margin: 18px 0 0; padding: 0; border: 0; }
@@ -276,25 +276,12 @@ button.calendar-cell.active { cursor: pointer; }
 .market-help-actions .button:disabled { cursor: not-allowed; opacity: .45; }
 .market-help-actions { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
 .market-help-actions span { color: #3f845f; font-size: 12px; font-weight: 750; }
-.raw-contribution-option { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
-.raw-contribution-heading > div { display: flex; align-items: center; gap: 8px; }
-.raw-contribution-heading strong { font-size: 13px; }
-.raw-contribution-heading span { padding: 3px 7px; border-radius: 999px; background: #eee6dc; color: #756b6b; font-size: 9px; font-weight: 800; text-transform: uppercase; }
-.raw-contribution-heading p { margin: 7px 0 12px; color: #756b6b; font-size: 12px; line-height: 1.55; }
-.raw-contribution-option pre { max-height: 130px; overflow: auto; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: #f8f3eb; color: #514747; font: 11px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
-.raw-opt-in { display: flex; align-items: start; gap: 9px; margin-top: 12px; cursor: pointer; }
-.raw-opt-in input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--berry); }
-.raw-opt-in span { display: grid; gap: 3px; }
-.raw-opt-in strong { font-size: 12px; }
-.raw-opt-in small { color: #887d7d; font-size: 10px; line-height: 1.4; }
 .market-help-empty h2 { margin-top: 0; }
 .market-help-empty p { margin-bottom: 0; color: #655b5b; }
 .contribution-details { margin-top: 32px; font-size: 13px; }
 .contribution-details summary { cursor: pointer; font-weight: 750; }
 .contribution-details p { max-width: 620px; color: #655b5b; line-height: 1.55; }
 .contribution-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
-.contribution-legend { display: grid; gap: 6px; margin: 14px 0; padding: 13px 15px; border-radius: 10px; background: #f8f3eb; }
-.contribution-legend p { margin: 0; font-size: 11px; }
 .contribution-actions .button, .contribution-actions .text-button { width: auto; min-height: 38px; padding: 10px 16px; text-decoration: none; }
 .contribution-actions .text-button { border-color: var(--line); color: var(--ink); }
 .contribution-details .github-coming-soon { margin-top: 14px; color: #887d7d; font-size: 11px; }

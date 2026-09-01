@@ -4,10 +4,6 @@ export interface Receipt {
   filename: string
   localTimestamp: string
   marketId: string
-  /** Receipt-header evidence. It is not a reviewed market mapping. */
-  marketHeaderExcerpt?: string
-  /** @deprecated Kept only for importing older BonBon backups. */
-  marketName?: string
   registerId: string
   receiptNumber: string
   totalCents: number

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { DayAggregate } from '../../domain/receipts/types'
 import { getMarketShortName } from '../../domain/receipts/markets'
+import type { LocalMarketMatches } from '../../domain/receipts/marketContributions'
 
 const props = defineProps<{
   year: number
@@ -10,6 +11,7 @@ const props = defineProps<{
   locale: 'de' | 'en'
   mode: 'spend' | 'trips' | 'average'
   isAccumulated?: boolean
+  localMarketMatches?: LocalMarketMatches
 }>()
 const emit = defineEmits<{ select: [day: DayAggregate] }>()
 const { t } = useI18n()
@@ -151,7 +153,7 @@ function hideTooltip() {
       </div>
       <div v-if="hovered.day.receipts?.length" class="hover-card-receipts">
         <span v-for="receipt in hovered.day.receipts.slice(0, 3)" :key="receipt.id" class="hover-card-tag">
-          {{ isAccumulated ? `${receipt.localTimestamp.slice(0, 4)} · ` : '' }}{{ receipt.localTimestamp.slice(11, 16) }} · {{ getMarketShortName(receipt.marketId, t('market')) }}
+          {{ isAccumulated ? `${receipt.localTimestamp.slice(0, 4)} · ` : '' }}{{ receipt.localTimestamp.slice(11, 16) }} · {{ getMarketShortName(receipt.marketId, t('market'), localMarketMatches) }}
         </span>
         <span v-if="hovered.day.receipts.length > 3" class="hover-card-more">
           +{{ hovered.day.receipts.length - 3 }}

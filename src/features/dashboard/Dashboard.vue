@@ -10,13 +10,15 @@ import {
 } from '../../domain/receipts/analytics'
 import {
   getMarketDisplayName,
+  getMarketSource,
   getMarketShortName,
 } from '../../domain/receipts/markets'
+import { getStoredLocalMarketMatches } from '../../domain/receipts/marketContributions'
 import ActivityCalendar from './ActivityCalendar.vue'
 import ChartCard from './ChartCard.vue'
 
 const props = defineProps<{ receipts: Receipt[]; locale: 'de' | 'en' }>()
-const emit = defineEmits<{ addReceipts: [] }>()
+const emit = defineEmits<{ addReceipts: []; improveMarkets: [] }>()
 const { t } = useI18n()
 const years = computed(() => [...new Set(props.receipts.map((receipt) => Number(receipt.localTimestamp.slice(0, 4))))].sort((a, b) => b - a))
 const markets = computed(() => [...new Set(props.receipts.map((receipt) => receipt.marketId))].sort())
@@ -24,13 +26,18 @@ const selectedYear = ref<number | 'all'>(Math.max(...years.value))
 const selectedMarkets = ref(new Set(markets.value))
 const calendarMode = ref<'spend' | 'trips' | 'average'>('spend')
 const selectedDay = ref<DayAggregate>()
+const localMarketMatches = getStoredLocalMarketMatches()
 
 function marketDisplayName(marketId: string) {
-  return getMarketDisplayName(marketId, t('market'))
+  return getMarketDisplayName(marketId, t('market'), localMarketMatches)
 }
 
 function marketShortName(marketId: string) {
-  return getMarketShortName(marketId, t('market'))
+  return getMarketShortName(marketId, t('market'), localMarketMatches)
+}
+
+function isLocalMarket(marketId: string) {
+  return getMarketSource(marketId, localMarketMatches) === 'local'
 }
 
 watch(years, (values) => {
@@ -275,10 +282,13 @@ const scatterOption = computed<EChartsOption>(() => {
           <div class="market-menu">
             <button type="button" class="market-select-all" @click="selectAllMarkets">{{ t('allMarkets') }}</button>
             <div class="market-items-list">
-              <label v-for="market in markets" :key="market" class="market-item-label">
-                <input type="checkbox" :checked="selectedMarkets.has(market)" @change="toggleMarket(market)" />
-                <span class="market-item-name">{{ marketDisplayName(market) }}</span>
-              </label>
+              <div v-for="market in markets" :key="market" class="market-item-row">
+                <label class="market-item-label">
+                  <input type="checkbox" :checked="selectedMarkets.has(market)" @change="toggleMarket(market)" />
+                  <span class="market-item-name">{{ marketDisplayName(market) }}</span>
+                </label>
+                <button v-if="isLocalMarket(market)" class="local-match-indicator" type="button" :title="t('localMatchInfo')" :aria-label="t('localMatchOpen', { id: market })" @click="emit('improveMarkets')">ⓘ {{ t('localMatchBadge') }} ↗</button>
+              </div>
             </div>
           </div>
         </details>
@@ -318,6 +328,7 @@ const scatterOption = computed<EChartsOption>(() => {
           :is-accumulated="isAllYears"
           :locale="locale"
           :mode="calendarMode"
+          :local-market-matches="localMarketMatches"
           @select="selectedDay = $event"
         />
       </article>

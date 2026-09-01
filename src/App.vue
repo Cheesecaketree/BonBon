@@ -5,7 +5,7 @@ import type { ImportStatus, Receipt } from './domain/receipts/types'
 import { parseReweReceipt, receiptId } from './domain/receipts/parser'
 import { isKnownMarket } from './domain/receipts/markets'
 import { canonicalizeMarketId } from './domain/receipts/marketSchema'
-import { clearContributionDrafts } from './domain/receipts/marketContributions'
+import { clearLocalMarketMatches } from './domain/receipts/marketContributions'
 import { clearPersistedData, loadPdfFiles, loadReceipts, savePdfFiles, saveReceipts } from './services/storage/database'
 import { downloadReceiptExport, parseReceiptExport } from './services/storage/interchange'
 import ImportPanel from './features/import/ImportPanel.vue'
@@ -27,15 +27,13 @@ type AppView = 'dashboard' | 'market-help'
 const currentView = ref<AppView>('dashboard')
 const sessionFiles = ref<Map<string, File>>(new Map())
 
-function normalizeReceiptMarketId(receipt: Receipt): Receipt {
+function normalizeReceiptMarketId(receipt: Receipt & { marketHeaderExcerpt?: string; marketName?: string }): Receipt {
   const marketId = canonicalizeMarketId(receipt.marketId) || receipt.marketId
-  const marketHeaderExcerpt = receipt.marketHeaderExcerpt || receipt.marketName
-  const { marketName: _legacyMarketName, ...rest } = receipt
+  const { marketName: _legacyMarketName, marketHeaderExcerpt: _legacyHeaderExcerpt, ...rest } = receipt
   return {
     ...rest,
     marketId,
     id: receiptId(receipt.localTimestamp, marketId, receipt.receiptNumber),
-    ...(marketHeaderExcerpt ? { marketHeaderExcerpt } : {}),
   }
 }
 
@@ -168,7 +166,7 @@ async function clearAll() {
   report.value = []
   notice.value = ''
   unknownMarketPromptCount.value = 0
-  clearContributionDrafts()
+  clearLocalMarketMatches()
   await clearPersistedData()
 }
 
@@ -239,7 +237,7 @@ function onModalFiles(files: File[]) {
     </template>
 
     <template v-else>
-      <Dashboard :receipts="receipts" :locale="activeLocale" @add-receipts="showAddModal = true" />
+      <Dashboard :receipts="receipts" :locale="activeLocale" @add-receipts="showAddModal = true" @improve-markets="setView('market-help')" />
       <section class="utility-section">
         <ImportPanel compact :processing="processing" @files="processFiles" />
         <article class="privacy-card">

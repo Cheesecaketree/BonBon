@@ -33,8 +33,8 @@
 
 ### 🏪 Reviewed Market Directory & Community Contributions
 
-- **Static reviewed dataset**: Market IDs are resolved only against the versioned dataset bundled into each BonBon release. Local contribution drafts never override a reviewed match.
-- **Contribution page (`#/help/markets`)**: Inspect IDs missing from the bundled dataset, compare distinct receipt-header observations, prepare a structured mapping, and download validated contribution JSON.
+- **Reviewed dataset with local fallback**: Bundled records always take precedence. For an unknown ID, a complete local match immediately supplies the name and address throughout the dashboard.
+- **Matching page (`#/help/markets`)**: Identify IDs missing from the bundled dataset, save local matches, and download validated contribution JSON.
 - **Structured Address Data**: Markets are stored with structured fields:
   - `name`: Store name / owner (e.g. `REWE Michael Reinartz OHG`)
   - `street`: Street name (e.g. `Lütticher Str.`)
@@ -43,8 +43,8 @@
   - `city`: City / Town (e.g. `Aachen`)
   - `country`: Country code (e.g. `DE` or `null`)
   - `lat` / `long`: Geographic coordinates (or `null`)
-- **Deterministic resolution**: Market IDs are canonicalized once, resolved against the reviewed repository dataset, and otherwise displayed as `Markt <id>` / `Market <id>`.
-- **Explicit evidence consent**: Receipt-header excerpts are visibly marked as unverified. They are excluded from contributions unless the user reviews them for personal data and explicitly opts in.
+- **Deterministic resolution**: Market IDs are canonicalized once, resolved against the reviewed repository dataset, then against local matches, and otherwise displayed as `Markt <id>` / `Market <id>`.
+- **Visible provenance**: Local matches are marked in the market filter and link directly back to the matching page for review or sharing.
 - **Static contribution workflow**: A submission can be downloaded, copied, or sent by email. Repository validation checks its schema before a maintainer reviews and merges it. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ### 🔒 Storage, Quick Controls & Data Portability
@@ -165,5 +165,5 @@ BonBon/
 ## 🛡 Security & Privacy Guarantee
 
 - **No Server Processing**: All PDF parsing and data crunching execute in your local browser sandbox.
-- **Transparent local retention**: Persistence is opt-in. When enabled, imported PDFs, structured receipt metadata, and the visible short market-header excerpt are stored in your browser. Ordinary receipt-backup JSON excludes the excerpt. Header evidence is never included in a market contribution without a separate explicit opt-in and a personal-data warning.
+- **Transparent local retention**: Persistence is opt-in. When enabled, imported PDFs and structured receipt metadata are stored in your browser. Local market matches are stored separately on this device and can be deleted from the matching page or with **Clear data**.
 - **No Third-Party Trackers**: No Google Analytics, no tracking pixels, no external CDNs at runtime.

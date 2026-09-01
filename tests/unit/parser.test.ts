@@ -29,12 +29,15 @@ describe('REWE parser', () => {
     expect(result.ok && result.receipt.localTimestamp).toBe('2026-08-31T20:55:00')
   })
 
-  it('extracts store header name when present', () => {
+  it('ignores receipt header text outside the required fields', () => {
     const textWithHeader = `REWE Markt GmbH\nVenloer Str. 310\n50823 Köln\n` + base
     const result = parseReweReceipt(textWithHeader, 'receipt.pdf')
     expect(result.ok).toBe(true)
     if (result.ok) {
-      expect(result.receipt.marketHeaderExcerpt).toBe('REWE Markt GmbH, Venloer Str. 310, 50823 Köln')
+      expect(result.receipt).toEqual({
+        id: receiptId('2026-08-31T20:55:01', '5454', '9385'), source: 'rewe', filename: 'receipt.pdf',
+        localTimestamp: '2026-08-31T20:55:01', marketId: '5454', registerId: '2', receiptNumber: '9385', totalCents: 123456,
+      })
     }
   })
 

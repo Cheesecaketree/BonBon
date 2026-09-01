@@ -2,12 +2,12 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Receipt } from '../../domain/receipts/types'
-import { getMarketDataset, isKnownMarket, parseMarketAddressString } from '../../domain/receipts/markets'
+import { getMarketDataset, isKnownMarket } from '../../domain/receipts/markets'
 import {
   createMarketContributionFile,
-  getStoredContributionDrafts,
-  removeContributionDraft,
-  saveContributionDraft,
+  getStoredLocalMarketMatches,
+  removeLocalMarketMatch,
+  saveLocalMarketMatch,
   serializeMarketContribution,
 } from '../../domain/receipts/marketContributions'
 import { completeMarketMappingSchema, type MarketContribution, type MarketData } from '../../domain/receipts/marketSchema'
@@ -16,24 +16,17 @@ const props = defineProps<{ receipts: Receipt[] }>()
 defineEmits<{ navigate: [] }>()
 const { t } = useI18n()
 const dataset = getMarketDataset()
-const storedDrafts = ref(getStoredContributionDrafts())
+const storedMatches = ref(getStoredLocalMarketMatches())
 type MarketDraft = { name: string; street: string; houseNumber: string; zip: string; city: string; country: string }
 const drafts = ref<Record<string, MarketDraft>>({})
-const includeHeaderEvidence = ref<Record<string, boolean>>({})
 const savedId = ref<string | null>(null)
 const saveError = ref<Record<string, string>>({})
 const copied = ref(false)
 
 const receiptMarkets = computed(() => {
-  const byId = new Map<string, { id: string; count: number; headerExcerpts: Set<string> }>()
-  for (const receipt of props.receipts) {
-    const current = byId.get(receipt.marketId) || { id: receipt.marketId, count: 0, headerExcerpts: new Set<string>() }
-    current.count += 1
-    const excerpt = receipt.marketHeaderExcerpt || receipt.marketName
-    if (excerpt?.trim()) current.headerExcerpts.add(excerpt.trim())
-    byId.set(receipt.marketId, current)
-  }
-  return [...byId.values()].map((market) => ({ ...market, headerExcerpts: [...market.headerExcerpts] }))
+  const counts = new Map<string, number>()
+  for (const receipt of props.receipts) counts.set(receipt.marketId, (counts.get(receipt.marketId) || 0) + 1)
+  return [...counts].map(([id, count]) => ({ id, count }))
     .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
 })
 
@@ -45,7 +38,7 @@ function emptyDraft(): MarketDraft {
 
 function getDraft(id: string): MarketDraft {
   if (drafts.value[id]) return drafts.value[id]
-  const source = storedDrafts.value[id]
+  const source = storedMatches.value[id]
   return source ? {
     name: source.name,
     street: source.street || '',
@@ -79,50 +72,32 @@ function draftIsComplete(id: string) {
   return completeMarketMappingSchema.safeParse(draftToMarketData(id)).success
 }
 
-function useHeaderAsStartingPoint(id: string, excerpt: string) {
-  const parsed = parseMarketAddressString(excerpt)
-  drafts.value[id] = {
-    name: parsed.name,
-    street: parsed.street || '',
-    houseNumber: parsed.houseNumber || '',
-    zip: parsed.zip || '',
-    city: parsed.city || '',
-    country: parsed.country || 'DE',
-  }
-}
-
 function save(id: string) {
-  const result = saveContributionDraft(id, draftToMarketData(id))
+  const result = saveLocalMarketMatch(id, draftToMarketData(id))
   if (!result.ok) {
     saveError.value[id] = result.message
     return
   }
-  storedDrafts.value = getStoredContributionDrafts()
+  storedMatches.value = getStoredLocalMarketMatches()
   savedId.value = id
   window.setTimeout(() => { if (savedId.value === id) savedId.value = null }, 2500)
 }
 
 function reset(id: string) {
-  removeContributionDraft(id)
-  storedDrafts.value = getStoredContributionDrafts()
+  removeLocalMarketMatch(id)
+  storedMatches.value = getStoredLocalMarketMatches()
   delete drafts.value[id]
   delete saveError.value[id]
 }
 
 const contributions = computed<MarketContribution[]>(() => missingMarkets.value.flatMap((market) => {
-  const mapping = storedDrafts.value[market.id] || null
-  const evidence = includeHeaderEvidence.value[market.id] && market.headerExcerpts.length
-    ? { headerExcerpts: market.headerExcerpts, personalDataReviewed: true as const }
-    : null
-  if (!mapping && !evidence) return []
-  return [{ retailer: 'rewe' as const, marketId: market.id, mapping, evidence }]
+  const mapping = storedMatches.value[market.id]
+  return mapping ? [{ retailer: 'rewe' as const, marketId: market.id, mapping }] : []
 }))
-
 const contributionFile = computed(() => contributions.value.length
   ? createMarketContributionFile(dataset.datasetVersion, contributions.value)
   : null)
 const contributionJson = computed(() => contributionFile.value ? serializeMarketContribution(contributionFile.value) : '')
-const hasContributions = computed(() => Boolean(contributionFile.value))
 const mailtoLink = computed(() => {
   const body = `${t('contributionEmailIntro')}\n\n${contributionJson.value}`
   return `mailto:bonbon@cheesecaketree.de?subject=${encodeURIComponent(t('contributionEmailSubject'))}&body=${encodeURIComponent(body)}`
@@ -169,16 +144,7 @@ function downloadContribution() {
       <article v-for="market in missingMarkets" :key="market.id" class="market-help-card">
         <div class="market-help-card-heading"><div><span class="market-id-badge">#{{ market.id }}</span><h2>{{ t('market') }} {{ market.id }}</h2></div><span class="dataset-status missing">{{ t('missingFromDataset') }}</span></div>
         <p class="receipt-count-line">{{ t('marketSeenOnReceipts', { count: market.count }) }}</p>
-        <p class="local-save-status" :class="{ saved: storedDrafts[market.id] }"><span aria-hidden="true">{{ storedDrafts[market.id] ? '✓' : '○' }}</span> {{ storedDrafts[market.id] ? t('contributionDraftSaved') : t('contributionDraftNotSaved') }}</p>
-
-        <section v-if="market.headerExcerpts.length" class="raw-contribution-option">
-          <div class="raw-contribution-heading"><div><strong>{{ t('rawContributionTitle') }}</strong><span>{{ t('unverifiedEvidence') }}</span></div><p>{{ t('rawContributionCopy') }}</p></div>
-          <div v-for="(excerpt, index) in market.headerExcerpts" :key="excerpt">
-            <pre>{{ excerpt }}</pre>
-            <button v-if="index === 0" class="text-button" type="button" @click="useHeaderAsStartingPoint(market.id, excerpt)">{{ t('useAsStartingPoint') }}</button>
-          </div>
-          <label class="raw-opt-in" :for="`include-raw-${market.id}`"><input :id="`include-raw-${market.id}`" v-model="includeHeaderEvidence[market.id]" type="checkbox" /><span><strong>{{ t('includeRawExtraction') }}</strong><small>{{ t('includeRawExtractionPrivacy') }}</small></span></label>
-        </section>
+        <p class="local-save-status" :class="{ saved: storedMatches[market.id] }"><span aria-hidden="true">{{ storedMatches[market.id] ? '✓' : '○' }}</span> {{ storedMatches[market.id] ? t('localMatchSaved') : t('localMatchNotSaved') }}</p>
 
         <fieldset class="market-address-form">
           <legend>{{ t('marketDetailsLabel') }}</legend>
@@ -196,17 +162,16 @@ function downloadContribution() {
           </div>
         </fieldset>
         <div class="market-help-actions">
-          <button class="button primary" type="button" :disabled="!draftIsComplete(market.id)" @click="save(market.id)">{{ t('saveContributionDraft') }}</button>
-          <button v-if="storedDrafts[market.id]" class="text-button" type="button" @click="reset(market.id)">{{ t('deleteContributionDraft') }}</button>
+          <button class="button primary" type="button" :disabled="!draftIsComplete(market.id)" @click="save(market.id)">{{ t('saveLocalMatch') }}</button>
+          <button v-if="storedMatches[market.id]" class="text-button" type="button" @click="reset(market.id)">{{ t('deleteLocalMatch') }}</button>
           <span v-if="savedId === market.id" role="status">{{ t('savedInline') }}</span>
           <span v-if="saveError[market.id]" role="alert">{{ saveError[market.id] }}</span>
         </div>
       </article>
     </div>
 
-    <details v-if="hasContributions" class="contribution-details" open>
+    <details v-if="contributionFile" class="contribution-details" open>
       <summary>{{ t('optionalContribution') }}</summary><p>{{ t('optionalContributionCopy') }}</p>
-      <div class="contribution-legend"><p><strong>{{ t('structuredContributionLabel') }}</strong>{{ t('structuredContributionExplanation') }}</p><p><strong>{{ t('rawContributionLabel') }}</strong>{{ t('rawContributionExplanation') }}</p></div>
       <div class="contribution-actions"><button class="button primary" type="button" @click="downloadContribution">{{ t('downloadContribution') }}</button><button class="text-button" type="button" @click="copyContribution">{{ copied ? t('copied') : t('copyContribution') }}</button><a class="text-button" :href="mailtoLink">{{ t('contributeByEmail') }}</a></div>
       <p>{{ t('contributionValidationCopy', { version: dataset.datasetVersion }) }}</p>
     </details>

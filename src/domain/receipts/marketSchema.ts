@@ -75,14 +75,8 @@ export const marketDatasetSchema = z.object({
 export const marketContributionSchema = z.object({
   retailer: z.literal('rewe'),
   marketId: canonicalMarketIdSchema,
-  mapping: completeMarketMappingSchema.nullable(),
-  evidence: z.object({
-    headerExcerpts: z.array(z.string().trim().min(4).max(500)).min(1).max(10),
-    personalDataReviewed: z.literal(true),
-  }).strict().nullable(),
-}).strict().refine((value) => value.mapping !== null || value.evidence !== null, {
-  message: 'A contribution needs a mapping, optional header evidence, or both.',
-})
+  mapping: completeMarketMappingSchema,
+}).strict()
 
 export const marketContributionFileSchema = z.object({
   schemaVersion: z.literal(MARKET_CONTRIBUTION_SCHEMA_VERSION),
