@@ -63,23 +63,22 @@ describe('market resolution and validation', () => {
     })
   })
 
-  it('loads a versioned dataset that passes the shared schema', () => {
+  it('loads a dataset that passes the shared schema', () => {
     const dataset = getMarketDataset()
     expect(marketDatasetSchema.parse(dataset)).toStrictEqual(dataset)
-    expect(dataset.schemaVersion).toBe(1)
-    expect(dataset.markets.every((market) => market.provenance.status === 'reviewed')).toBe(true)
+    expect(dataset.schemaVersion).toBe(2)
   })
 
-  it('accepts complete contributions and rejects incomplete or obsolete evidence fields', () => {
-    const base = { schemaVersion: 1, basedOnDatasetVersion: '2026-09-01' }
+  it('accepts flat, complete contributions and rejects incomplete or extra fields', () => {
+    const base = { schemaVersion: 2 }
     expect(marketContributionFileSchema.safeParse({ ...base, markets: [{
-      retailer: 'rewe', marketId: '9999', mapping: localMarket,
+      retailer: 'rewe', marketId: '9999', ...localMarket,
     }] }).success).toBe(true)
     expect(marketContributionFileSchema.safeParse({ ...base, markets: [{
-      retailer: 'rewe', marketId: '9999', mapping: { ...localMarket, city: null },
+      retailer: 'rewe', marketId: '9999', ...localMarket, city: null,
     }] }).success).toBe(false)
     expect(marketContributionFileSchema.safeParse({ ...base, markets: [{
-      retailer: 'rewe', marketId: '9999', mapping: localMarket,
+      retailer: 'rewe', marketId: '9999', ...localMarket,
       evidence: { headerExcerpts: ['Some receipt header'], personalDataReviewed: true },
     }] }).success).toBe(false)
   })

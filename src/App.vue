@@ -16,6 +16,7 @@ const MarketHelp = defineAsyncComponent(() => import('./features/markets/MarketH
 const { t, locale } = useI18n()
 const receipts = ref<Receipt[]>([])
 const report = ref<ImportStatus[]>([])
+let reportDismissTimer: number | undefined
 const processing = ref(false)
 const processed = ref(0)
 const processingTotal = ref(0)
@@ -85,6 +86,17 @@ watch(receipts, async (value) => {
     await saveReceipts(value)
   }
 }, { deep: true })
+
+watch(processing, (active) => {
+  window.clearTimeout(reportDismissTimer)
+  reportDismissTimer = undefined
+  if (!active && report.value.length) {
+    reportDismissTimer = window.setTimeout(() => {
+      report.value = []
+      reportDismissTimer = undefined
+    }, 6000)
+  }
+})
 
 function setLocale(next: 'de' | 'en') {
   locale.value = next
@@ -235,7 +247,10 @@ watch(showAddModal, async (open) => {
   }
 })
 
-onBeforeUnmount(() => document.body.classList.remove('dialog-open'))
+onBeforeUnmount(() => {
+  document.body.classList.remove('dialog-open')
+  window.clearTimeout(reportDismissTimer)
+})
 
 function onModalFiles(files: File[]) {
   processFiles(files)
@@ -267,7 +282,7 @@ function onModalFiles(files: File[]) {
     </header>
 
     <template v-if="currentView === 'market-help'">
-      <MarketHelp :receipts="receipts" :pdf-files="sessionFiles" @navigate="setView('dashboard')" />
+      <MarketHelp :receipts="receipts" :pdf-files="sessionFiles" @navigate="setView('dashboard')" @upload-receipts="openAddModal" />
     </template>
 
     <template v-else-if="!receipts.length">

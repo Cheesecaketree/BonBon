@@ -26,7 +26,7 @@ describe('static market matching workflow', () => {
     extractPdfTextMock.mockReset()
   })
 
-  it('shows only unresolved IDs and no stored or contributable raw evidence UI', () => {
+  it('shows only unresolved IDs and clearly offers to restore unavailable PDFs', async () => {
     const knownReceipt = { ...unknownReceipt, id: 'known', marketId: '11' }
     const wrapper = mount(MarketHelp, { props: { receipts: [unknownReceipt, knownReceipt] }, global: { plugins: [i18n] } })
     expect(wrapper.text()).toContain('Markt 9999')
@@ -34,6 +34,11 @@ describe('static market matching workflow', () => {
     expect(wrapper.text()).not.toContain('Kopfbereich')
     expect(wrapper.text()).not.toContain('persönliche Daten')
     expect(wrapper.find('a[href^="mailto:"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Original-PDFs in dieser Sitzung nicht verfügbar')
+    const uploadButton = wrapper.get('.receipt-unavailable .button')
+    expect(uploadButton.text()).toBe('eBons erneut hochladen')
+    await uploadButton.trigger('click')
+    expect(wrapper.emitted('uploadReceipts')).toHaveLength(1)
   })
 
   it('shows an ephemeral PDF reference, uses it as a starting point, and opens the full receipt', async () => {
@@ -63,6 +68,21 @@ describe('static market matching workflow', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:receipt-test')
   })
 
+  it('shows only one extracted suggestion per market', async () => {
+    extractPdfTextMock.mockResolvedValue('REWE Markt GmbH\nVenloer Str. 310\n50823 Köln\nEUR')
+    const secondReceipt = { ...unknownReceipt, id: 'second', filename: 'second.pdf', receiptNumber: '2' }
+    const firstPdf = new File(['first'], unknownReceipt.filename, { type: 'application/pdf' })
+    const secondPdf = new File(['second'], secondReceipt.filename, { type: 'application/pdf' })
+    const wrapper = mount(MarketHelp, {
+      props: { receipts: [unknownReceipt, secondReceipt], pdfFiles: new Map([[firstPdf.name, firstPdf], [secondPdf.name, secondPdf]]) },
+      global: { plugins: [i18n] },
+    })
+    await flushPromises()
+
+    expect(wrapper.findAll('.receipt-reference-item')).toHaveLength(1)
+    expect(extractPdfTextMock).toHaveBeenCalledTimes(1)
+  })
+
   it('saves a local match that immediately resolves the unknown ID', async () => {
     const wrapper = mount(MarketHelp, { props: { receipts: [unknownReceipt] }, global: { plugins: [i18n] } })
     await wrapper.get('#market-name-9999').setValue(localMarket.name)
@@ -78,9 +98,23 @@ describe('static market matching workflow', () => {
     expect(localStorage.getItem('bonbon-market-contribution-drafts')).toBeNull()
 
     const mailto = decodeURIComponent(wrapper.get('a[href^="mailto:"]').attributes('href') || '')
-    expect(mailto).toContain('"mapping"')
+    expect(mailto).toContain('"marketId": "9999"')
+    expect(mailto).not.toContain('"mapping"')
     expect(mailto).not.toContain('"evidence"')
     expect(mailto).not.toContain('headerExcerpts')
+  })
+
+  it('uses REWE when the optional market name is left empty', async () => {
+    const wrapper = mount(MarketHelp, { props: { receipts: [unknownReceipt] }, global: { plugins: [i18n] } })
+    await wrapper.get('#market-street-9999').setValue(localMarket.street)
+    await wrapper.get('#market-house-9999').setValue(localMarket.houseNumber)
+    await wrapper.get('#market-zip-9999').setValue(localMarket.zip)
+    await wrapper.get('#market-city-9999').setValue(localMarket.city)
+
+    const saveButton = wrapper.get('button.button.primary')
+    expect(saveButton.attributes('disabled')).toBeUndefined()
+    await saveButton.trigger('click')
+    expect(getStoredLocalMarketMatches()['9999'].name).toBe('REWE')
   })
 
   it('migrates a valid legacy draft into the local-match store', () => {
