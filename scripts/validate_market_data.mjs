@@ -1,42 +1,41 @@
-import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
-import { marketContributionFileSchema, marketDatasetSchema } from '../src/domain/receipts/marketSchema.ts'
+import {
+  classifyContribution,
+  datasetPath,
+  formatClassification,
+  formatConflicts,
+  loadContribution,
+  loadDataset,
+} from './market_data_tools.mjs'
 
-const projectRoot = resolve(import.meta.dirname, '..')
-const datasetPath = resolve(projectRoot, 'src/domain/receipts/known-markets.json')
-
-async function readJson(path) {
-  return JSON.parse(await readFile(path, 'utf8'))
+function usage() {
+  return [
+    'Usage:',
+    '  npm run validate:markets',
+    '  npm run validate:contribution -- <contribution.json>',
+  ].join('\n')
 }
 
-function printIssues(label, error) {
-  console.error(`${label} is invalid:`)
-  for (const issue of error.issues) console.error(`- ${issue.path.join('.') || '<root>'}: ${issue.message}`)
-}
-
-const datasetResult = marketDatasetSchema.safeParse(await readJson(datasetPath))
-if (!datasetResult.success) {
-  printIssues('Market dataset', datasetResult.error)
-  process.exitCode = 1
-} else {
-  console.log(`Validated ${datasetResult.data.markets.length} markets in the shared dataset.`)
-}
-
-const submissionArgument = process.argv[2]
-if (submissionArgument && datasetResult.success) {
-  const submissionPath = resolve(process.cwd(), submissionArgument)
-  const submissionResult = marketContributionFileSchema.safeParse(await readJson(submissionPath))
-  if (!submissionResult.success) {
-    printIssues('Market contribution', submissionResult.error)
-    process.exitCode = 1
-  } else {
-    const known = new Set(datasetResult.data.markets.map((market) => `${market.retailer}:${market.marketId}`))
-    const conflicts = submissionResult.data.markets.filter((market) => known.has(`${market.retailer}:${market.marketId}`))
-    if (conflicts.length) {
-      console.error(`Contribution conflicts with existing markets: ${conflicts.map((market) => market.marketId).join(', ')}`)
-      process.exitCode = 1
-    } else {
-      console.log(`Validated ${submissionResult.data.markets.length} contributed market mapping(s).`)
-    }
+async function main() {
+  const [mode, input, ...extra] = process.argv.slice(2)
+  if (!['dataset', 'contribution'].includes(mode) || extra.length || (mode === 'dataset' && input) || (mode === 'contribution' && !input)) {
+    throw new Error(usage())
   }
+
+  const dataset = await loadDataset(datasetPath)
+  console.log(`Validated ${dataset.markets.length} markets in the shared dataset.`)
+  if (mode === 'dataset') return
+
+  const contribution = await loadContribution(resolve(process.cwd(), input))
+  const classification = classifyContribution(dataset, contribution)
+  if (classification.conflicts.length) throw new Error(formatConflicts(classification.conflicts))
+
+  console.log(`Validated ${contribution.markets.length} contributed market mapping(s).`)
+  console.log(formatClassification(classification))
+  console.log('No files were changed.')
 }
+
+main().catch((error) => {
+  console.error(error.message)
+  process.exitCode = 1
+})
