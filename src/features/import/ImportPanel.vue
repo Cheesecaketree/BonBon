@@ -44,6 +44,6 @@ async function drop(event: DragEvent) {
     </div>
     <input ref="fileInput" class="hidden-file" type="file" accept="application/pdf,.pdf" multiple tabindex="-1" aria-hidden="true" @change="selectFiles" />
     <input ref="folderInput" class="hidden-file" type="file" accept="application/pdf,.pdf" multiple webkitdirectory tabindex="-1" aria-hidden="true" @change="selectFiles" />
-    <p v-if="!compact" class="fine-print">{{ t('pdfNote') }} · {{ t('processingNote') }}</p>
+    <p v-if="!compact" class="fine-print">{{ t('processingNote') }}</p>
   </section>
 </template>

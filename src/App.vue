@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ImportStatus, Receipt } from './domain/receipts/types'
 import { parseReweReceipt, receiptId } from './domain/receipts/parser'
@@ -9,6 +9,7 @@ import { clearLocalMarketMatches } from './domain/receipts/marketContributions'
 import { clearPersistedData, loadPdfFiles, loadReceipts, savePdfFiles, saveReceipts } from './services/storage/database'
 import { downloadReceiptExport, parseReceiptExport } from './services/storage/interchange'
 import ImportPanel from './features/import/ImportPanel.vue'
+import packageInfo from '../package.json'
 const Dashboard = defineAsyncComponent(() => import('./features/dashboard/Dashboard.vue'))
 const MarketHelp = defineAsyncComponent(() => import('./features/markets/MarketHelp.vue'))
 
@@ -23,6 +24,7 @@ const persistenceEnabled = ref(localStorage.getItem('bonbon-persistence-enabled'
 const notice = ref('')
 const unknownMarketPromptCount = ref(0)
 const activeLocale = computed(() => locale.value === 'en' ? 'en' as const : 'de' as const)
+const appVersion = packageInfo.version.replace(/\.0$/, '')
 type AppView = 'dashboard' | 'market-help'
 const currentView = ref<AppView>('dashboard')
 const sessionFiles = ref<Map<string, File>>(new Map())
@@ -190,10 +192,54 @@ async function importJson(event: Event) {
 function statusLabel(status: ImportStatus['status']) { return t(status) }
 
 const showAddModal = ref(false)
+const addModalRef = ref<HTMLElement>()
+const addCloseRef = ref<HTMLButtonElement>()
+const addModalTrigger = ref<HTMLElement>()
+
+function openAddModal(event?: Event) {
+  addModalTrigger.value = (event?.currentTarget || document.activeElement) as HTMLElement
+  showAddModal.value = true
+}
+
+function closeAddModal() {
+  showAddModal.value = false
+}
+
+function handleAddModalKeys(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeAddModal()
+    return
+  }
+  if (event.key !== 'Tab' || !addModalRef.value) return
+  const focusable = [...addModalRef.value.querySelectorAll<HTMLElement>('button, [href], input:not([tabindex="-1"]), select, textarea, [tabindex]:not([tabindex="-1"])')]
+  if (!focusable.length) return
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+watch(showAddModal, async (open) => {
+  document.body.classList.toggle('dialog-open', open)
+  if (open) {
+    await nextTick()
+    addCloseRef.value?.focus()
+  } else {
+    addModalTrigger.value?.focus()
+  }
+})
+
+onBeforeUnmount(() => document.body.classList.remove('dialog-open'))
 
 function onModalFiles(files: File[]) {
   processFiles(files)
-  showAddModal.value = false
+  closeAddModal()
 }
 </script>
 
@@ -202,13 +248,13 @@ function onModalFiles(files: File[]) {
     <header class="topbar">
       <div class="topbar-brand-group">
         <a class="wordmark" href="#/" aria-label="BonBon Startseite" @click.prevent="setView('dashboard')">
-          <span>Bon</span><span>Bon</span><i aria-hidden="true"></i>
+          <span>Bon</span><span>Bon</span><small class="version-pill" aria-hidden="true">v{{ appVersion }}</small>
         </a>
       </div>
       <div class="topbar-actions">
         <template v-if="receipts.length">
           <div class="topbar-data-actions">
-            <button class="topbar-btn primary" type="button" @click="showAddModal = true">
+            <button class="topbar-btn primary" type="button" @click="openAddModal">
               <span class="plus-icon">+</span> {{ t('importMore') }}
             </button>
             <button class="topbar-btn danger-ghost" type="button" :title="t('clear')" @click="clearAll">
@@ -216,8 +262,7 @@ function onModalFiles(files: File[]) {
             </button>
           </div>
         </template>
-        <span class="privacy-pill"><i aria-hidden="true"></i>{{ t('privacy') }}</span>
-        <div class="language-switch" aria-label="Sprache / Language"><button :class="{ active: locale === 'de' }" @click="setLocale('de')">DE</button><button :class="{ active: locale === 'en' }" @click="setLocale('en')">EN</button></div>
+        <div class="language-switch" role="group" aria-label="Sprache / Language"><button :class="{ active: locale === 'de' }" :aria-pressed="locale === 'de'" @click="setLocale('de')">DE</button><button :class="{ active: locale === 'en' }" :aria-pressed="locale === 'en'" @click="setLocale('en')">EN</button></div>
       </div>
     </header>
 
@@ -228,7 +273,7 @@ function onModalFiles(files: File[]) {
     <template v-else-if="!receipts.length">
       <section class="hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">RECEIPT EXPLORER · PHASE 1</p><h1>{{ t('tagline') }}</h1><p class="lede">{{ t('intro') }}</p>
+          <h1>{{ t('tagline') }}</h1><p class="lede">{{ t('intro') }}</p>
           <div class="promise-row"><span>{{ t('local') }}</span><span>{{ t('noAccount') }}</span><span>{{ t('noCloud') }}</span></div>
         </div>
         <ImportPanel :processing="processing" @files="processFiles" />
@@ -237,7 +282,7 @@ function onModalFiles(files: File[]) {
     </template>
 
     <template v-else>
-      <Dashboard :receipts="receipts" :locale="activeLocale" @add-receipts="showAddModal = true" @improve-markets="setView('market-help')" />
+      <Dashboard :receipts="receipts" :locale="activeLocale" @add-receipts="openAddModal" @improve-markets="setView('market-help')" />
       <section class="utility-section">
         <ImportPanel compact :processing="processing" @files="processFiles" />
         <article class="privacy-card">
@@ -255,9 +300,9 @@ function onModalFiles(files: File[]) {
     </template>
 
     <!-- Add Receipts Modal -->
-    <div v-if="showAddModal" class="modal-backdrop" @click.self="showAddModal = false">
-      <div class="add-modal" role="dialog" aria-modal="true" :aria-label="t('importMore')">
-        <button class="close-button" type="button" @click="showAddModal = false" :aria-label="t('close')">×</button>
+    <div v-if="showAddModal" class="modal-backdrop" @click.self="closeAddModal">
+      <div ref="addModalRef" class="add-modal" role="dialog" aria-modal="true" :aria-label="t('importMore')" @keydown="handleAddModalKeys">
+        <button ref="addCloseRef" class="close-button" type="button" @click="closeAddModal" :aria-label="t('close')">×</button>
         <div class="add-modal-header">
           <p class="eyebrow">{{ t('importMore') }}</p>
           <h2>{{ t('dropTitle') }}</h2>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { EChartsOption } from 'echarts'
 import type { DayAggregate, Receipt } from '../../domain/receipts/types'
@@ -24,9 +24,25 @@ const years = computed(() => [...new Set(props.receipts.map((receipt) => Number(
 const markets = computed(() => [...new Set(props.receipts.map((receipt) => receipt.marketId))].sort())
 const selectedYear = ref<number | 'all'>(Math.max(...years.value))
 const selectedMarkets = ref(new Set(markets.value))
-const calendarMode = ref<'spend' | 'trips' | 'average'>('spend')
 const selectedDay = ref<DayAggregate>()
+const dayPanelRef = ref<HTMLElement>()
+const dayCloseRef = ref<HTMLButtonElement>()
+const dayTrigger = ref<HTMLElement>()
+const isMobile = ref(false)
 const localMarketMatches = getStoredLocalMarketMatches()
+
+let mobileQuery: MediaQueryList | undefined
+function updateMobile(event?: MediaQueryListEvent) {
+  isMobile.value = event ? event.matches : Boolean(mobileQuery?.matches)
+}
+
+onMounted(() => {
+  mobileQuery = window.matchMedia('(max-width: 720px)')
+  updateMobile()
+  mobileQuery.addEventListener('change', updateMobile)
+})
+
+onBeforeUnmount(() => mobileQuery?.removeEventListener('change', updateMobile))
 
 function marketDisplayName(marketId: string) {
   return getMarketDisplayName(marketId, t('market'), localMarketMatches)
@@ -96,15 +112,59 @@ function toggleMarket(market: string) {
 }
 function selectAllMarkets() { selectedMarkets.value = new Set(markets.value) }
 
-const chartBase = {
-  textStyle: { fontFamily: 'Inter, system-ui, sans-serif', color: '#4f4343' },
-  grid: { left: 44, right: 18, top: 25, bottom: 38, containLabel: false },
-  tooltip: { trigger: 'axis' as const, backgroundColor: '#241d1d', borderWidth: 0, textStyle: { color: '#fffaf1' } },
+function openDay(day: DayAggregate) {
+  dayTrigger.value = document.activeElement as HTMLElement
+  selectedDay.value = day
 }
 
-const weekdayTripOption = computed<EChartsOption>(() => ({ ...chartBase, xAxis: { type: 'category', data: weekdays.value, axisLine: { lineStyle: { color: '#cfc1b4' } }, axisTick: { show: false } }, yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#e8ddd2' } } }, series: [{ type: 'bar', data: weekdaySeries(filtered.value).trips, itemStyle: { color: '#9b2848', borderRadius: [8, 8, 0, 0] }, barMaxWidth: 34 }] }))
-const weekdaySpendOption = computed<EChartsOption>(() => ({ ...chartBase, xAxis: { type: 'category', data: weekdays.value, axisLine: { lineStyle: { color: '#cfc1b4' } }, axisTick: { show: false } }, yAxis: { type: 'value', axisLabel: { formatter: '€{value}' }, splitLine: { lineStyle: { color: '#e8ddd2' } } }, series: [{ type: 'bar', data: weekdaySeries(filtered.value).spendCents.map((value) => value / 100), itemStyle: { color: '#d98470', borderRadius: [8, 8, 0, 0] }, barMaxWidth: 34 }] }))
-const hourlyOption = computed<EChartsOption>(() => ({ ...chartBase, xAxis: { type: 'category', data: Array.from({ length: 24 }, (_, hour) => `${hour}`), axisLine: { lineStyle: { color: '#cfc1b4' } }, axisTick: { show: false } }, yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#e8ddd2' } } }, series: [{ type: 'bar', data: hourlyTrips(filtered.value), itemStyle: { color: '#6f1732', borderRadius: [5, 5, 0, 0] }, barMaxWidth: 18 }] }))
+function closeDay() {
+  selectedDay.value = undefined
+}
+
+function handleDayKeys(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    closeDay()
+    return
+  }
+  if (event.key !== 'Tab' || !dayPanelRef.value) return
+  const focusable = [...dayPanelRef.value.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+  if (!focusable.length) return
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
+}
+
+watch(selectedDay, async (day) => {
+  document.body.classList.toggle('dialog-open', Boolean(day))
+  if (day) {
+    await nextTick()
+    dayCloseRef.value?.focus()
+  } else {
+    dayTrigger.value?.focus()
+  }
+})
+
+onBeforeUnmount(() => document.body.classList.remove('dialog-open'))
+
+function chartBase() {
+  return {
+    aria: { enabled: true, decal: { show: false } },
+    textStyle: { fontFamily: 'Inter, system-ui, sans-serif', color: '#4f4343', fontSize: isMobile.value ? 10 : 12 },
+    grid: { left: isMobile.value ? 38 : 44, right: isMobile.value ? 8 : 18, top: 25, bottom: isMobile.value ? 30 : 38, containLabel: false },
+    tooltip: { trigger: 'axis' as const, confine: true, triggerOn: 'mousemove|click|mousewheel' as const, backgroundColor: '#241d1d', borderWidth: 0, textStyle: { color: '#fffaf1' } },
+  }
+}
+
+const weekdayTripOption = computed<EChartsOption>(() => ({ ...chartBase(), xAxis: { type: 'category', data: weekdays.value, axisLine: { lineStyle: { color: '#cfc1b4' } }, axisTick: { show: false } }, yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#e8ddd2' } } }, series: [{ type: 'bar', data: weekdaySeries(filtered.value).trips, itemStyle: { color: '#9b2848', borderRadius: [8, 8, 0, 0] }, barMaxWidth: 34 }] }))
+const weekdaySpendOption = computed<EChartsOption>(() => ({ ...chartBase(), xAxis: { type: 'category', data: weekdays.value, axisLine: { lineStyle: { color: '#cfc1b4' } }, axisTick: { show: false } }, yAxis: { type: 'value', axisLabel: { formatter: '€{value}' }, splitLine: { lineStyle: { color: '#e8ddd2' } } }, series: [{ type: 'bar', data: weekdaySeries(filtered.value).spendCents.map((value) => value / 100), itemStyle: { color: '#d98470', borderRadius: [8, 8, 0, 0] }, barMaxWidth: 34 }] }))
+const hourlyOption = computed<EChartsOption>(() => ({ ...chartBase(), xAxis: { type: 'category', data: Array.from({ length: 24 }, (_, hour) => `${hour}`), axisLabel: { interval: isMobile.value ? 2 : 0 }, axisLine: { lineStyle: { color: '#cfc1b4' } }, axisTick: { show: false } }, yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#e8ddd2' } } }, series: [{ type: 'bar', data: hourlyTrips(filtered.value), itemStyle: { color: '#6f1732', borderRadius: [5, 5, 0, 0] }, barMaxWidth: 18 }] }))
 
 const yearColors = ['#9b2848', '#d98470', '#6f1732', '#c4627a', '#4a1523', '#e29b82', '#823146', '#f0a289']
 
@@ -129,7 +189,7 @@ const monthlyOption = computed<EChartsOption>(() => {
     })
 
     return {
-      ...chartBase,
+      ...chartBase(),
       legend: {
         show: true,
         top: 0,
@@ -137,9 +197,9 @@ const monthlyOption = computed<EChartsOption>(() => {
         textStyle: { color: '#695d5d', fontSize: 11, fontWeight: 700 },
         data: yearsList.map(String),
       },
-      grid: { ...chartBase.grid, top: 35 },
+      grid: { ...chartBase().grid, top: 35 },
       tooltip: {
-        ...chartBase.tooltip,
+        ...chartBase().tooltip,
         formatter: (params: any) => {
           const items = Array.isArray(params) ? params : [params]
           if (!items.length) return ''
@@ -172,7 +232,7 @@ const monthlyOption = computed<EChartsOption>(() => {
   }
 
   return {
-    ...chartBase,
+    ...chartBase(),
     xAxis: {
       type: 'category',
       data: months.value,
@@ -199,9 +259,9 @@ const weeklyOption = computed<EChartsOption>(() => {
   const series = weeklyTrips(filtered.value)
   const useYearInDate = isAllYears.value && hasMultipleYears.value
   return {
-    ...chartBase,
+    ...chartBase(),
     tooltip: {
-      ...chartBase.tooltip,
+      ...chartBase().tooltip,
       formatter: (params: any) => {
         const item = Array.isArray(params) ? params[0] : params
         if (!item) return ''
@@ -237,8 +297,8 @@ const heatmapOption = computed<EChartsOption>(() => {
   const data = matrix.flatMap((row, day) => row.map((value, hour) => [hour, day, value]))
   const max = Math.max(1, ...data.map((item) => Number(item[2])))
   return {
-    ...chartBase, grid: { left: 54, right: 24, top: 18, bottom: 54 }, tooltip: { position: 'top' },
-    xAxis: { type: 'category', data: Array.from({ length: 24 }, (_, hour) => `${hour}`), splitArea: { show: true }, axisTick: { show: false }, axisLine: { show: false } },
+    ...chartBase(), grid: { left: isMobile.value ? 28 : 54, right: isMobile.value ? 5 : 24, top: 18, bottom: isMobile.value ? 42 : 54 }, tooltip: { trigger: 'item', confine: true, position: 'top' },
+    xAxis: { type: 'category', data: Array.from({ length: 24 }, (_, hour) => `${hour}`), axisLabel: { interval: isMobile.value ? 2 : 0 }, splitArea: { show: true }, axisTick: { show: false }, axisLine: { show: false } },
     yAxis: { type: 'category', data: weekdays.value, splitArea: { show: true }, axisTick: { show: false }, axisLine: { show: false } },
     visualMap: { min: 0, max, calculable: false, orient: 'horizontal', left: 'center', bottom: 0, inRange: { color: ['#f5ede3', '#e7b6aa', '#9b2848', '#541125'] }, textStyle: { color: '#695d5d' } },
     series: [{ type: 'heatmap', data, label: { show: false }, itemStyle: { borderColor: '#fffaf1', borderWidth: 2, borderRadius: 3 } }],
@@ -250,10 +310,10 @@ const scatterOption = computed<EChartsOption>(() => {
   const dates = [...new Set(data.map((item) => item.date))].sort()
   const useYearInDate = isAllYears.value && hasMultipleYears.value
   return {
-    ...chartBase, tooltip: { trigger: 'item', formatter: (params: any) => `${formatDate(params.value[0])}<br>${String(Math.floor(params.value[1])).padStart(2, '0')}:${String(Math.round(params.value[1] % 1 * 60)).padStart(2, '0')} · ${money(params.value[2] * 100)}<br>${marketDisplayName(params.value[3])}` },
-    xAxis: { type: 'category', data: dates, axisLabel: { formatter: (value: string) => useYearInDate ? shortDateWithYear(value) : shortDate(value), interval: Math.max(0, Math.floor(dates.length / 7) - 1), rotate: 30 }, axisTick: { show: false }, axisLine: { lineStyle: { color: '#cfc1b4' } } },
+    ...chartBase(), tooltip: { trigger: 'item', confine: true, triggerOn: 'mousemove|click|mousewheel', formatter: (params: any) => `${formatDate(params.value[0])}<br>${String(Math.floor(params.value[1])).padStart(2, '0')}:${String(Math.round(params.value[1] % 1 * 60)).padStart(2, '0')} · ${money(params.value[2] * 100)}<br>${marketDisplayName(params.value[3])}` },
+    xAxis: { type: 'category', data: dates, axisLabel: { formatter: (value: string) => useYearInDate ? shortDateWithYear(value) : shortDate(value), interval: Math.max(0, Math.floor(dates.length / (isMobile.value ? 4 : 7)) - 1), rotate: isMobile.value ? 40 : 30 }, axisTick: { show: false }, axisLine: { lineStyle: { color: '#cfc1b4' } } },
     yAxis: { type: 'value', min: 0, max: 24, interval: 4, axisLabel: { formatter: (value: number) => `${String(value).padStart(2, '0')}:00` }, splitLine: { lineStyle: { color: '#e8ddd2' } } },
-    series: [{ type: 'scatter', data: data.map((item) => [item.date, item.hour, item.totalCents / 100, item.marketId]), symbolSize: (value: number[]) => 7 + Math.min(13, Math.sqrt(value[2]) * 1.6), itemStyle: { color: '#9b2848', opacity: .72 } }],
+    series: [{ type: 'scatter', data: data.map((item) => [item.date, item.hour, item.totalCents / 100, item.marketId]), symbolSize: (value: number[]) => (isMobile.value ? 6 : 7) + Math.min(isMobile.value ? 10 : 13, Math.sqrt(value[2]) * (isMobile.value ? 1.25 : 1.6)), itemStyle: { color: '#9b2848', opacity: .72 } }],
   }
 })
 </script>
@@ -262,7 +322,6 @@ const scatterOption = computed<EChartsOption>(() => {
   <section class="dashboard">
     <header class="dashboard-heading">
       <div>
-        <p class="eyebrow">BONBON · PHASE 1</p>
         <h1>{{ isAllYears ? t('dashboardAllYears') : t('dashboard') }}</h1>
         <p>{{ isAllYears ? t('dashboardAllYearsIntro') : t('dashboardIntro') }}</p>
       </div>
@@ -270,28 +329,31 @@ const scatterOption = computed<EChartsOption>(() => {
         <button type="button" class="filter-add-btn" @click="emit('addReceipts')">
           + {{ t('importMore') }}
         </button>
-        <label>
-          {{ t('year') }}
+        <label class="filter-field">
+          <span class="filter-label">{{ t('year') }}</span>
           <select v-model="selectedYear">
             <option value="all">{{ t('allYears') }}</option>
             <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
           </select>
         </label>
-        <details class="market-filter">
-          <summary>{{ t('markets') }} <strong>{{ selectedMarkets.size }}/{{ markets.length }}</strong></summary>
-          <div class="market-menu">
-            <button type="button" class="market-select-all" @click="selectAllMarkets">{{ t('allMarkets') }}</button>
-            <div class="market-items-list">
-              <div v-for="market in markets" :key="market" class="market-item-row">
-                <label class="market-item-label">
-                  <input type="checkbox" :checked="selectedMarkets.has(market)" @change="toggleMarket(market)" />
-                  <span class="market-item-name">{{ marketDisplayName(market) }}</span>
-                </label>
-                <button v-if="isLocalMarket(market)" class="local-match-indicator" type="button" :title="t('localMatchInfo')" :aria-label="t('localMatchOpen', { id: market })" @click="emit('improveMarkets')">ⓘ {{ t('localMatchBadge') }} ↗</button>
+        <div class="filter-field">
+          <span class="filter-label">{{ t('markets') }}</span>
+          <details class="market-filter">
+            <summary><span>{{ t('selected') }}</span><strong>{{ selectedMarkets.size }}/{{ markets.length }}</strong></summary>
+            <div class="market-menu">
+              <button type="button" class="market-select-all" @click="selectAllMarkets">{{ t('allMarkets') }}</button>
+              <div class="market-items-list">
+                <div v-for="market in markets" :key="market" class="market-item-row">
+                  <label class="market-item-label">
+                    <input type="checkbox" :checked="selectedMarkets.has(market)" @change="toggleMarket(market)" />
+                    <span class="market-item-name">{{ marketDisplayName(market) }}</span>
+                  </label>
+                  <button v-if="isLocalMarket(market)" class="local-match-indicator" type="button" :title="t('localMatchInfo')" :aria-label="t('localMatchOpen', { id: market })" @click="emit('improveMarkets')">ⓘ {{ t('localMatchBadge') }} ↗</button>
+                </div>
               </div>
             </div>
-          </div>
-        </details>
+          </details>
+        </div>
       </div>
     </header>
 
@@ -316,25 +378,19 @@ const scatterOption = computed<EChartsOption>(() => {
             <h2>{{ t('calendar') }}</h2>
             <p>{{ isAllYears ? t('calendarAllYearsCopy') : t('calendarCopy') }}</p>
           </div>
-          <div class="mode-switch">
-            <button :class="{ active: calendarMode === 'spend' }" @click="calendarMode = 'spend'">{{ t('spend') }}</button>
-            <button :class="{ active: calendarMode === 'trips' }" @click="calendarMode = 'trips'">{{ t('tripsMode') }}</button>
-            <button :class="{ active: calendarMode === 'average' }" @click="calendarMode = 'average'">{{ t('average') }}</button>
-          </div>
         </header>
         <ActivityCalendar
           :year="isAllYears ? 2024 : Number(selectedYear)"
           :days="days"
           :is-accumulated="isAllYears"
           :locale="locale"
-          :mode="calendarMode"
           :local-market-matches="localMarketMatches"
-          @select="selectedDay = $event"
+          @select="openDay"
         />
       </article>
 
       <div class="chart-grid">
-        <ChartCard class="wide" :title="t('weekdayTime')" :copy="t('weekdayTimeCopy')" :option="heatmapOption" tall />
+        <ChartCard class="wide" dense :title="t('weekdayTime')" :copy="t('weekdayTimeCopy')" :option="heatmapOption" tall />
         <ChartCard :title="t('weekdayTrips')" :option="weekdayTripOption" />
         <ChartCard :title="t('weekdaySpend')" :option="weekdaySpendOption" />
         <ChartCard
@@ -342,16 +398,16 @@ const scatterOption = computed<EChartsOption>(() => {
           :copy="isAllYears && hasMultipleYears ? t('monthlySpendStackedCopy') : undefined"
           :option="monthlyOption"
         />
-        <ChartCard :title="t('hourlyTrips')" :option="hourlyOption" />
-        <ChartCard class="wide" :title="t('weeklyTrips')" :copy="t('weeklyTripsCopy')" :option="weeklyOption" />
-        <ChartCard class="wide" :title="t('scatter')" :option="scatterOption" tall />
+        <ChartCard dense :title="t('hourlyTrips')" :option="hourlyOption" />
+        <ChartCard class="wide" dense :title="t('weeklyTrips')" :copy="t('weeklyTripsCopy')" :option="weeklyOption" />
+        <ChartCard class="wide" dense :title="t('scatter')" :option="scatterOption" tall />
       </div>
     </template>
     <p v-else class="empty-filtered">{{ t('emptyFiltered') }}</p>
 
-    <div v-if="selectedDay" class="day-backdrop" @click.self="selectedDay = undefined">
-      <aside class="day-panel" role="dialog" aria-modal="true" :aria-label="t('dayDetails')">
-        <button class="close-button" type="button" @click="selectedDay = undefined" :aria-label="t('close')">×</button>
+    <div v-if="selectedDay" class="day-backdrop" @click.self="closeDay">
+      <aside ref="dayPanelRef" class="day-panel" role="dialog" aria-modal="true" :aria-label="t('dayDetails')" @keydown="handleDayKeys">
+        <button ref="dayCloseRef" class="close-button" type="button" @click="closeDay" :aria-label="t('close')">×</button>
         <p class="eyebrow">{{ t('dayDetails') }}</p><h2>{{ isAllYears ? formatMonthDay(selectedDay.date) : formatDate(selectedDay.date) }}</h2>
         <div class="day-total"><strong>{{ money(selectedDay.totalCents) }}</strong><span>{{ selectedDay.trips }} {{ t('trips').toLowerCase() }}</span></div>
         <ul><li v-for="receipt in selectedDay.receipts" :key="receipt.id"><time>{{ isAllYears ? `${receipt.localTimestamp.slice(0, 4)} · ` : '' }}{{ receipt.localTimestamp.slice(11, 16) }}</time><span>{{ marketShortName(receipt.marketId) }} · {{ t('receipt') }} {{ receipt.receiptNumber }}</span><strong>{{ money(receipt.totalCents) }}</strong></li></ul>

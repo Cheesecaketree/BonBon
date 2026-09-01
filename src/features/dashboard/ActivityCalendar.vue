@@ -9,18 +9,11 @@ const props = defineProps<{
   year: number
   days: Map<string, DayAggregate>
   locale: 'de' | 'en'
-  mode: 'spend' | 'trips' | 'average'
   isAccumulated?: boolean
   localMarketMatches?: LocalMarketMatches
 }>()
 const emit = defineEmits<{ select: [day: DayAggregate] }>()
 const { t } = useI18n()
-
-function metric(day: DayAggregate) {
-  if (props.mode === 'trips') return day.trips
-  if (props.mode === 'average') return day.averageCents
-  return day.totalCents
-}
 
 const cells = computed(() => {
   const first = new Date(Date.UTC(props.year, 0, 1))
@@ -37,12 +30,12 @@ const cells = computed(() => {
 })
 
 const maxTrips = computed(() => Math.max(1, ...[...props.days.values()].map((day) => day.trips)))
-const maxMetric = computed(() => Math.max(1, ...[...props.days.values()].map(metric)))
+const maxSpend = computed(() => Math.max(1, ...[...props.days.values()].map((day) => day.totalCents)))
 const calendarLabels = computed(() => props.locale === 'de' ? ['Mo', 'Mi', 'Fr'] : ['Mon', 'Wed', 'Fri'])
 
 function dotStyle(day?: DayAggregate) {
   if (!day) return {}
-  const size = 4 + Math.sqrt(metric(day) / maxMetric.value) * 10
+  const size = 4 + Math.sqrt(day.totalCents / maxSpend.value) * 10
   const alpha = .42 + (day.trips / maxTrips.value) * .58
   return { width: `${size}px`, height: `${size}px`, backgroundColor: `rgba(155, 40, 72, ${alpha})` }
 }
@@ -112,7 +105,8 @@ function hideTooltip() {
 
 <template>
   <div ref="containerRef" class="calendar-wrapper">
-    <div class="calendar-scroll" @scroll="hideTooltip">
+    <p class="calendar-scroll-hint">{{ t('calendarScrollHint') }} <span aria-hidden="true">→</span></p>
+    <div class="calendar-scroll" tabindex="0" :aria-label="t('calendarScrollHint')" @scroll="hideTooltip">
       <div class="calendar-labels" aria-hidden="true"><span v-for="item in calendarLabels" :key="item">{{ item }}</span></div>
       <div class="activity-calendar" role="grid" :aria-label="String(year)">
         <template v-for="(cell, index) in cells" :key="cell?.date ?? `blank-${index}`">
