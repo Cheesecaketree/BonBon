@@ -3,7 +3,9 @@ import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 
 GlobalWorkerOptions.workerSrc = pdfWorker
 
-export async function extractPdfText(file: File): Promise<string> {
+const extractionCache = new WeakMap<File, Promise<string>>()
+
+async function readPdfText(file: File): Promise<string> {
   const bytes = new Uint8Array(await file.arrayBuffer())
   const loadingTask = getDocument({ data: bytes })
   const document = await loadingTask.promise
@@ -28,4 +30,15 @@ export async function extractPdfText(file: File): Promise<string> {
   const result = pages.join('\n')
   if (!result.trim()) throw new Error('no-text')
   return result
+}
+
+export function extractPdfText(file: File): Promise<string> {
+  const cached = extractionCache.get(file)
+  if (cached) return cached
+  const extraction = readPdfText(file).catch((error) => {
+    extractionCache.delete(file)
+    throw error
+  })
+  extractionCache.set(file, extraction)
+  return extraction
 }

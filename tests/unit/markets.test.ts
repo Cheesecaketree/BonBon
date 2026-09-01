@@ -8,6 +8,7 @@ import {
   getMarketShortName,
   getMarketSource,
   isKnownMarket,
+  parseMarketReference,
 } from '../../src/domain/receipts/markets'
 import { canonicalizeMarketId, marketContributionFileSchema, marketDatasetSchema, type MarketData } from '../../src/domain/receipts/marketSchema'
 
@@ -53,6 +54,13 @@ describe('market resolution and validation', () => {
 
   it('formats complete structured market data', () => {
     expect(formatMarketFullName(localMarket)).toBe('REWE Beispiel, Hauptstr. 2, 12345 Berlin')
+  })
+
+  it('turns a detected receipt header into an editable starting point', () => {
+    expect(parseMarketReference('REWE Markt GmbH, Venloer Str. 310, 50823 Köln')).toEqual({
+      name: 'REWE Markt GmbH', street: 'Venloer Str.', houseNumber: '310', zip: '50823', city: 'Köln',
+      country: 'DE', lat: null, long: null,
+    })
   })
 
   it('loads a versioned dataset that passes the shared schema', () => {

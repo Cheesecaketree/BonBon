@@ -5,12 +5,14 @@ BonBon is a fully static application. It does not send market data to an API. A 
 ## Prepare a contribution
 
 1. Import your REWE eBon locally and open **Improve market data**.
-2. Enter the store name and full address.
+2. Compare the locally detected receipt header or open the complete PDF, then enter the store name and full address.
 3. Save the local match and confirm it appears correctly in the dashboard market filter.
 4. Download its validated contribution JSON file.
 5. Attach that file to an issue, send it by email, or use it as the basis for a pull request.
 
 Local matches are used immediately for unknown IDs. A reviewed match bundled with a later BonBon release always takes precedence.
+
+Detected header text and receipt PDFs are local editing references only. They are not stored in the contribution JSON and must not be attached as part of the standard contribution workflow.
 
 ## Validate a downloaded contribution
 

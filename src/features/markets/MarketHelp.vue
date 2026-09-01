@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Receipt } from '../../domain/receipts/types'
-import { getMarketDataset, isKnownMarket } from '../../domain/receipts/markets'
+import { extractMarketReference } from '../../domain/receipts/parser'
+import { getMarketDataset, isKnownMarket, parseMarketReference } from '../../domain/receipts/markets'
 import {
   createMarketContributionFile,
   getStoredLocalMarketMatches,
@@ -12,7 +13,7 @@ import {
 } from '../../domain/receipts/marketContributions'
 import { completeMarketMappingSchema, type MarketContribution, type MarketData } from '../../domain/receipts/marketSchema'
 
-const props = defineProps<{ receipts: Receipt[] }>()
+const props = defineProps<{ receipts: Receipt[]; pdfFiles?: Map<string, File> }>()
 defineEmits<{ navigate: [] }>()
 const { t } = useI18n()
 const dataset = getMarketDataset()
@@ -22,15 +23,63 @@ const drafts = ref<Record<string, MarketDraft>>({})
 const savedId = ref<string | null>(null)
 const saveError = ref<Record<string, string>>({})
 const copied = ref(false)
+type ReceiptReference = { filename: string; excerpt: string }
+const receiptReferences = ref<Record<string, ReceiptReference[]>>({})
+const referencesLoading = ref(false)
+const viewer = ref<{ filename: string; url: string } | null>(null)
+let referenceLoadVersion = 0
 
 const receiptMarkets = computed(() => {
-  const counts = new Map<string, number>()
-  for (const receipt of props.receipts) counts.set(receipt.marketId, (counts.get(receipt.marketId) || 0) + 1)
-  return [...counts].map(([id, count]) => ({ id, count }))
+  const grouped = new Map<string, Receipt[]>()
+  for (const receipt of props.receipts) grouped.set(receipt.marketId, [...(grouped.get(receipt.marketId) || []), receipt])
+  return [...grouped].map(([id, receipts]) => ({ id, count: receipts.length, receipts }))
     .sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true }))
 })
 
 const missingMarkets = computed(() => receiptMarkets.value.filter((market) => !isKnownMarket(market.id)))
+
+watch(
+  () => [props.receipts, props.pdfFiles] as const,
+  async () => {
+    const version = ++referenceLoadVersion
+    const files = props.pdfFiles
+    if (!files?.size || !missingMarkets.value.length) {
+      receiptReferences.value = {}
+      referencesLoading.value = false
+      return
+    }
+
+    referencesLoading.value = true
+    const next: Record<string, ReceiptReference[]> = {}
+    const { extractPdfText } = await import('../../services/pdf/extractText')
+    await Promise.all(missingMarkets.value.flatMap((market) => market.receipts.map(async (receipt) => {
+      const file = files.get(receipt.filename)
+      if (!file) return
+      try {
+        const excerpt = extractMarketReference(await extractPdfText(file))
+        if (!excerpt) return
+        const references = next[market.id] || []
+        if (!references.some((reference) => reference.filename === receipt.filename)) {
+          references.push({ filename: receipt.filename, excerpt })
+          next[market.id] = references
+        }
+      } catch {
+        // The receipt can still be opened even if its text could not be extracted.
+      }
+    })))
+    if (version === referenceLoadVersion) {
+      receiptReferences.value = next
+      referencesLoading.value = false
+    }
+  },
+  { immediate: true },
+)
+
+function availableReceipts(receipts: Receipt[]) {
+  const files = props.pdfFiles
+  if (!files) return []
+  return [...new Map(receipts.filter((receipt) => files.has(receipt.filename)).map((receipt) => [receipt.filename, receipt])).values()]
+}
 
 function emptyDraft(): MarketDraft {
   return { name: '', street: '', houseNumber: '', zip: '', city: '', country: 'DE' }
@@ -54,6 +103,38 @@ function updateDraft(id: string, field: keyof MarketDraft, value: string) {
   delete saveError.value[id]
   if (savedId.value === id) savedId.value = null
 }
+
+function useReferenceAsStartingPoint(id: string, excerpt: string) {
+  const parsed = parseMarketReference(excerpt)
+  drafts.value[id] = {
+    name: parsed.name,
+    street: parsed.street || '',
+    houseNumber: parsed.houseNumber || '',
+    zip: parsed.zip || '',
+    city: parsed.city || '',
+    country: parsed.country || 'DE',
+  }
+  delete saveError.value[id]
+}
+
+function openReceipt(receipt: Receipt | undefined) {
+  if (!receipt) return
+  const file = props.pdfFiles?.get(receipt.filename)
+  if (!file) return
+  closeReceipt()
+  viewer.value = { filename: receipt.filename, url: URL.createObjectURL(file) }
+}
+
+function closeReceipt() {
+  if (!viewer.value) return
+  URL.revokeObjectURL(viewer.value.url)
+  viewer.value = null
+}
+
+onBeforeUnmount(() => {
+  referenceLoadVersion += 1
+  closeReceipt()
+})
 
 function draftToMarketData(id: string): MarketData {
   const draft = getDraft(id)
@@ -159,6 +240,26 @@ function downloadContribution() {
         <p class="receipt-count-line">{{ t('marketSeenOnReceipts', { count: market.count }) }}</p>
         <p class="local-save-status" :class="{ saved: storedMatches[market.id] }"><span aria-hidden="true">{{ storedMatches[market.id] ? '✓' : '○' }}</span> {{ storedMatches[market.id] ? t('localMatchSaved') : t('localMatchNotSaved') }}</p>
 
+        <section class="receipt-reference">
+          <div class="receipt-reference-heading">
+            <div><strong>{{ t('receiptReferenceTitle') }}</strong><span>{{ t('localReferenceBadge') }}</span></div>
+            <p>{{ t('receiptReferenceCopy') }}</p>
+          </div>
+          <p v-if="referencesLoading && !receiptReferences[market.id]?.length" class="receipt-reference-state">{{ t('extractingReference') }}</p>
+          <div v-for="reference in receiptReferences[market.id]" :key="reference.filename" class="receipt-reference-item">
+            <small>{{ reference.filename }}</small>
+            <pre>{{ reference.excerpt }}</pre>
+            <div>
+              <button class="text-button" type="button" @click="useReferenceAsStartingPoint(market.id, reference.excerpt)">{{ t('useAsStartingPoint') }}</button>
+              <button class="text-button" type="button" @click="openReceipt(market.receipts.find((receipt) => receipt.filename === reference.filename))">{{ t('openReceiptPdf') }}</button>
+            </div>
+          </div>
+          <div v-if="!referencesLoading && !receiptReferences[market.id]?.length" class="receipt-reference-state">
+            <p>{{ availableReceipts(market.receipts).length ? t('referenceNotFound') : t('receiptPdfUnavailable') }}</p>
+            <button v-for="receipt in availableReceipts(market.receipts)" :key="receipt.filename" class="text-button" type="button" @click="openReceipt(receipt)">{{ t('openReceiptPdfNamed', { filename: receipt.filename }) }}</button>
+          </div>
+        </section>
+
         <fieldset class="market-address-form">
           <legend>{{ t('marketDetailsLabel') }}</legend>
           <p>{{ t('marketDetailsFormCopy') }}</p>
@@ -188,5 +289,12 @@ function downloadContribution() {
       <div class="contribution-actions"><button class="button primary" type="button" @click="downloadContribution">{{ t('downloadContribution') }}</button><button class="text-button" type="button" @click="copyContribution">{{ copied ? t('copied') : t('copyContribution') }}</button><a class="text-button" :href="mailtoLink">{{ t('contributeByEmail') }}</a></div>
       <p>{{ t('contributionValidationCopy', { version: dataset.datasetVersion }) }}</p>
     </details>
+
+    <div v-if="viewer" class="receipt-viewer-backdrop" @click.self="closeReceipt">
+      <section class="receipt-viewer" role="dialog" aria-modal="true" :aria-label="t('receiptViewerLabel', { filename: viewer.filename })">
+        <header><div><p class="eyebrow">{{ t('receiptViewerEyebrow') }}</p><h2>{{ viewer.filename }}</h2></div><button class="close-button" type="button" :aria-label="t('close')" @click="closeReceipt">×</button></header>
+        <iframe :src="viewer.url" :title="t('receiptViewerLabel', { filename: viewer.filename })"></iframe>
+      </section>
+    </div>
   </section>
 </template>

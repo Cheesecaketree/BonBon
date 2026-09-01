@@ -10,6 +10,46 @@ import type { LocalMarketMatches } from './marketContributions'
 
 export type { CanonicalMarket, MarketData, MarketDataset } from './marketSchema'
 
+export function parseMarketReference(raw: string): MarketData {
+  const trimmed = raw.trim()
+  if (!trimmed) return { name: '', street: null, houseNumber: null, zip: null, city: null, country: 'DE', lat: null, long: null }
+
+  const parts = trimmed.split(/[\n,]+/).map((part) => part.trim()).filter(Boolean)
+  let street: string | null = null
+  let houseNumber: string | null = null
+  let zip: string | null = null
+  let city: string | null = null
+
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const match = parts[index].match(/\b(?:D-)?(\d{5})\s+([A-Za-zÄÖÜäöüß\s\-]+)/)
+    if (!match) continue
+    zip = match[1]
+    city = match[2].trim()
+    parts.splice(index, 1)
+    break
+  }
+
+  for (let index = parts.length - 1; index >= 1; index -= 1) {
+    const match = parts[index].match(/^([A-Za-zÄÖÜäöüß\s.\-]+?)\s+(\d+[\s\-\w/]*)$/)
+    if (!match) continue
+    street = match[1].trim()
+    houseNumber = match[2].trim()
+    parts.splice(index, 1)
+    break
+  }
+
+  return {
+    name: parts.join(', ') || trimmed,
+    street,
+    houseNumber,
+    zip,
+    city,
+    country: 'DE',
+    lat: null,
+    long: null,
+  }
+}
+
 export function formatMarketAddress(market: MarketData): string {
   const parts: string[] = []
   if (market.street) parts.push(market.houseNumber ? `${market.street} ${market.houseNumber}` : market.street)

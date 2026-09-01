@@ -25,6 +25,22 @@ export function receiptId(localTimestamp: string, marketId: string, receiptNumbe
   return `rewe:${localTimestamp}:${marketId}:${receiptNumber}`
 }
 
+export function extractMarketReference(text: string): string | undefined {
+  const lines = text.split(/\r?\n/).map((line) => line.replace(/\s+/g, ' ').trim()).filter(Boolean)
+  const referenceLines: string[] = []
+
+  for (const line of lines.slice(0, 12)) {
+    if (/^(SUMME|TSE-|Markt:|Bon-Nr|Kasse:|\*+|-+|=+)/i.test(line)) break
+    if (/\d+[.,]\d{2}\s+[A-Z]$/i.test(line)) break
+    if (/^(EUR|Tel|Fax|USt|St\.-Nr|Steuernummer|UID|EC-|Girocard)$/i.test(line)) continue
+    referenceLines.push(line)
+    if (referenceLines.length === 3) break
+  }
+
+  const reference = referenceLines.join(', ')
+  return reference.length >= 4 ? reference : undefined
+}
+
 export function parseReweReceipt(text: string, filename: string): ParseResult {
   const timestamp = text.match(TSE_TIMESTAMP)?.[1] ?? fallbackTimestamp(text)
   const marketId = canonicalizeMarketId(text.match(MARKET)?.[1] || '')

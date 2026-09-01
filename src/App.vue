@@ -222,7 +222,7 @@ function onModalFiles(files: File[]) {
     </header>
 
     <template v-if="currentView === 'market-help'">
-      <MarketHelp :receipts="receipts" @navigate="setView('dashboard')" />
+      <MarketHelp :receipts="receipts" :pdf-files="sessionFiles" @navigate="setView('dashboard')" />
     </template>
 
     <template v-else-if="!receipts.length">

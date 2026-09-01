@@ -264,6 +264,17 @@ button.calendar-cell.active { cursor: pointer; }
 .receipt-count-line { margin: -9px 0 16px; color: #756b6b; font-size: 12px; }
 .local-save-status { display: flex; align-items: center; gap: 6px; margin: 12px 0 -5px; color: #887d7d; font-size: 12px; font-weight: 750; }
 .local-save-status.saved { color: #3f845f; }
+.receipt-reference { margin: 18px 0 22px; padding: 17px; border: 1px solid rgba(155,40,72,.16); border-radius: 13px; background: rgba(155,40,72,.045); }
+.receipt-reference-heading > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.receipt-reference-heading strong { font-size: 13px; }
+.receipt-reference-heading span { padding: 4px 7px; border-radius: 999px; color: #756b6b; background: rgba(255,255,255,.75); font-size: 10px; font-weight: 800; letter-spacing: .02em; text-transform: uppercase; }
+.receipt-reference-heading p, .receipt-reference-state { margin: 7px 0 0; color: #756b6b; font-size: 11px; line-height: 1.55; }
+.receipt-reference-item { margin-top: 13px; }
+.receipt-reference-item small { display: block; margin-bottom: 5px; color: #887d7d; font-size: 10px; }
+.receipt-reference-item pre { overflow-x: auto; margin: 0; padding: 12px 13px; border: 1px solid var(--line); border-radius: 9px; color: #544a4a; background: rgba(255,255,255,.8); font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+.receipt-reference-item > div, .receipt-reference-state { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.receipt-reference .text-button { width: auto; min-height: 32px; margin-top: 8px; padding: 7px 11px; border-color: var(--line); color: var(--ink); background: rgba(255,255,255,.7); }
+.receipt-reference .text-button:hover { background: white; }
 .market-address-form { margin: 18px 0 0; padding: 0; border: 0; }
 .market-address-form legend { font-size: 14px; font-weight: 800; }
 .market-address-form > p { margin: 5px 0 14px; color: #756b6b; font-size: 12px; }
@@ -287,12 +298,19 @@ button.calendar-cell.active { cursor: pointer; }
 .contribution-actions .button, .contribution-actions .text-button { width: auto; min-height: 38px; padding: 10px 16px; text-decoration: none; }
 .contribution-actions .text-button { border-color: var(--line); color: var(--ink); }
 .contribution-details .github-coming-soon { margin-top: 14px; color: #887d7d; font-size: 11px; }
+.receipt-viewer-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(25,19,19,.72); backdrop-filter: blur(8px); }
+.receipt-viewer { display: grid; grid-template-rows: auto minmax(0, 1fr); width: min(1000px, 96vw); height: min(900px, 92vh); overflow: hidden; border-radius: 18px; background: var(--cream); box-shadow: 0 28px 90px rgba(0,0,0,.4); }
+.receipt-viewer > header { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 58px 16px 22px; border-bottom: 1px solid var(--line); }
+.receipt-viewer .eyebrow { margin: 0 0 4px; }
+.receipt-viewer h2 { overflow: hidden; margin: 0; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+.receipt-viewer .close-button { top: 14px; right: 14px; }
+.receipt-viewer iframe { width: 100%; height: 100%; border: 0; background: #dedede; }
 .unknown-market-toast { position: fixed; z-index: 70; right: 22px; bottom: 22px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 18px; width: min(440px, calc(100% - 44px)); padding: 20px 48px 20px 22px; border: 1px solid rgba(255,255,255,.12); border-radius: 18px; color: white; background: var(--ink); box-shadow: 0 18px 55px rgba(36,29,29,.3); }
 .unknown-market-toast strong { font-size: 15px; }
 .unknown-market-toast p { margin: 6px 0 0; color: rgba(255,255,255,.7); font-size: 12px; line-height: 1.5; }
 .unknown-market-toast .button { align-self: center; white-space: nowrap; }
 .toast-dismiss { position: absolute; top: 8px; right: 10px; border: 0; color: rgba(255,255,255,.65); background: none; font-size: 20px; cursor: pointer; }
-@media (max-width: 600px) { .market-form-row.street, .market-form-row.city { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .market-form-row.street, .market-form-row.city { grid-template-columns: 1fr; }.receipt-viewer-backdrop { padding: 0; }.receipt-viewer { width: 100vw; height: 100vh; border-radius: 0; } }
 .utility-actions { display: grid; gap: 8px; flex: 0 0 220px; }
 .toggle-control, .text-button { width: 100%; min-height: 38px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; color: white; background: rgba(255,255,255,.04); font-size: 11px; font-weight: 750; cursor: pointer; }
 .toggle-control { display: flex; gap: 9px; align-items: center; padding: 7px 12px; text-align: left; }

@@ -1,10 +1,13 @@
-import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import MarketHelp from '../../src/features/markets/MarketHelp.vue'
 import { getStoredLocalMarketMatches } from '../../src/domain/receipts/marketContributions'
 import { getMarketData } from '../../src/domain/receipts/markets'
 import { i18n } from '../../src/i18n'
 import type { Receipt } from '../../src/domain/receipts/types'
+
+const { extractPdfTextMock } = vi.hoisted(() => ({ extractPdfTextMock: vi.fn() }))
+vi.mock('../../src/services/pdf/extractText', () => ({ extractPdfText: extractPdfTextMock }))
 
 const unknownReceipt: Receipt = {
   id: 'unknown', source: 'rewe', filename: 'unknown.pdf', localTimestamp: '2026-08-31T12:00:00',
@@ -20,9 +23,10 @@ describe('static market matching workflow', () => {
   beforeEach(() => {
     localStorage.clear()
     i18n.global.locale.value = 'de'
+    extractPdfTextMock.mockReset()
   })
 
-  it('shows only unresolved IDs and no raw receipt evidence UI', () => {
+  it('shows only unresolved IDs and no stored or contributable raw evidence UI', () => {
     const knownReceipt = { ...unknownReceipt, id: 'known', marketId: '11' }
     const wrapper = mount(MarketHelp, { props: { receipts: [unknownReceipt, knownReceipt] }, global: { plugins: [i18n] } })
     expect(wrapper.text()).toContain('Markt 9999')
@@ -30,6 +34,33 @@ describe('static market matching workflow', () => {
     expect(wrapper.text()).not.toContain('Kopfbereich')
     expect(wrapper.text()).not.toContain('persönliche Daten')
     expect(wrapper.find('a[href^="mailto:"]').exists()).toBe(false)
+  })
+
+  it('shows an ephemeral PDF reference, uses it as a starting point, and opens the full receipt', async () => {
+    extractPdfTextMock.mockResolvedValue('REWE Markt GmbH\nVenloer Str. 310\n50823 Köln\nEUR\nTEST ARTIKEL 12,34 B')
+    const createObjectURL = vi.fn(() => 'blob:receipt-test')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: createObjectURL })
+    Object.defineProperty(URL, 'revokeObjectURL', { configurable: true, value: revokeObjectURL })
+    const pdf = new File(['synthetic'], unknownReceipt.filename, { type: 'application/pdf' })
+    const wrapper = mount(MarketHelp, {
+      props: { receipts: [unknownReceipt], pdfFiles: new Map([[pdf.name, pdf]]) },
+      global: { plugins: [i18n] },
+    })
+    await flushPromises()
+
+    expect(wrapper.get('.receipt-reference-item pre').text()).toBe('REWE Markt GmbH, Venloer Str. 310, 50823 Köln')
+    expect(wrapper.text()).toContain('weder gespeichert noch als Teil eines Beitrags geteilt')
+    await wrapper.get('.receipt-reference-item .text-button').trigger('click')
+    expect((wrapper.get('#market-name-9999').element as HTMLInputElement).value).toBe('REWE Markt GmbH')
+    expect((wrapper.get('#market-street-9999').element as HTMLInputElement).value).toBe('Venloer Str.')
+    expect((wrapper.get('#market-city-9999').element as HTMLInputElement).value).toBe('Köln')
+
+    await wrapper.findAll('.receipt-reference-item .text-button')[1].trigger('click')
+    expect(createObjectURL).toHaveBeenCalledWith(pdf)
+    expect(wrapper.get('.receipt-viewer iframe').attributes('src')).toBe('blob:receipt-test')
+    await wrapper.get('.receipt-viewer .close-button').trigger('click')
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:receipt-test')
   })
 
   it('saves a local match that immediately resolves the unknown ID', async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseReweReceipt, receiptId } from '../../src/domain/receipts/parser'
+import { extractMarketReference, parseReweReceipt, receiptId } from '../../src/domain/receipts/parser'
 
 const base = `
 SUMME                   EUR      1.234,56
@@ -39,6 +39,12 @@ describe('REWE parser', () => {
         localTimestamp: '2026-08-31T20:55:01', marketId: '5454', registerId: '2', receiptNumber: '9385', totalCents: 123456,
       })
     }
+  })
+
+  it('extracts an ephemeral market reference without adding transaction lines', () => {
+    const text = `REWE Markt GmbH\nVenloer Str. 310\n50823 Köln\nEUR\nTEST ARTIKEL 12,34 B\n${base}`
+    expect(extractMarketReference(text)).toBe('REWE Markt GmbH, Venloer Str. 310, 50823 Köln')
+    expect(extractMarketReference(base)).toBeUndefined()
   })
 
   it('reports every missing required field', () => {

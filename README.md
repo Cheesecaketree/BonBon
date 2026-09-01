@@ -34,7 +34,8 @@
 ### 🏪 Reviewed Market Directory & Community Contributions
 
 - **Reviewed dataset with local fallback**: Bundled records always take precedence. For an unknown ID, a complete local match immediately supplies the name and address throughout the dashboard.
-- **Matching page (`#/help/markets`)**: Identify IDs missing from the bundled dataset, save local matches, and download validated contribution JSON.
+- **Matching page (`#/help/markets`)**: Identify IDs missing from the bundled dataset, compare an automatically detected receipt header, open the complete local PDF, save local matches, and download validated contribution JSON.
+- **Ephemeral receipt reference**: Header suggestions are read from the original PDF only when the matching page needs them. They are never added to receipt metadata, local mappings, backups, or contribution files.
 - **Structured Address Data**: Markets are stored with structured fields:
   - `name`: Store name / owner (e.g. `REWE Michael Reinartz OHG`)
   - `street`: Street name (e.g. `Lütticher Str.`)
@@ -166,4 +167,5 @@ BonBon/
 
 - **No Server Processing**: All PDF parsing and data crunching execute in your local browser sandbox.
 - **Transparent local retention**: Persistence is opt-in. When enabled, imported PDFs and structured receipt metadata are stored in your browser. Local market matches are stored separately on this device and can be deleted from the matching page or with **Clear data**.
+- **Local receipt viewer**: The matching tool opens original PDFs through temporary in-browser object URLs. No receipt PDF or automatically detected header is transmitted as part of a market contribution.
 - **No Third-Party Trackers**: No Google Analytics, no tracking pixels, no external CDNs at runtime.
