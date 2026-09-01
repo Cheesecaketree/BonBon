@@ -60,6 +60,25 @@ describe('static market matching workflow', () => {
     expect(localStorage.getItem('bonbon-market-contribution-drafts')).toBeNull()
   })
 
+  it('disables an unchanged local match and enables updating after an edit', async () => {
+    localStorage.setItem('bonbon-local-market-matches', JSON.stringify({ '9999': localMarket }))
+    i18n.global.locale.value = 'en'
+    const wrapper = mount(MarketHelp, { props: { receipts: [unknownReceipt] }, global: { plugins: [i18n] } })
+    const saveButton = wrapper.get('button.button.primary')
+
+    expect(saveButton.text()).toBe('Local match saved ✓')
+    expect(saveButton.attributes('disabled')).toBeDefined()
+    expect(wrapper.get('button.delete-local-match').text()).toBe('Delete local match')
+
+    await wrapper.get('#market-city-9999').setValue('Hamburg')
+    expect(saveButton.text()).toBe('Update local match')
+    expect(saveButton.attributes('disabled')).toBeUndefined()
+
+    await saveButton.trigger('click')
+    expect(getStoredLocalMarketMatches()['9999'].city).toBe('Hamburg')
+    expect(saveButton.attributes('disabled')).toBeDefined()
+  })
+
   it('does not offer bundled IDs for local matching or contribution', () => {
     localStorage.setItem('bonbon-local-market-matches', JSON.stringify({ '0011': localMarket }))
     const knownReceipt = { ...unknownReceipt, marketId: '0011' }

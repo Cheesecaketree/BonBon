@@ -274,7 +274,9 @@ button.calendar-cell.active { cursor: pointer; }
 .market-form-row.street { grid-template-columns: minmax(0, 1fr) 110px; }
 .market-form-row.city { grid-template-columns: 110px minmax(0, 1fr) 72px; }
 .market-help-actions .button:disabled { cursor: not-allowed; opacity: .45; }
-.market-help-actions { display: flex; align-items: center; gap: 14px; margin-top: 14px; }
+.market-help-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 14px; }
+.market-help-actions .delete-local-match { border-color: rgba(140,66,66,.35); color: #8c4242; background: rgba(140,66,66,.08); }
+.market-help-actions .delete-local-match:hover { border-color: rgba(176,28,28,.5); color: #941919; background: rgba(176,28,28,.14); }
 .market-help-actions span { color: #3f845f; font-size: 12px; font-weight: 750; }
 .market-help-empty h2 { margin-top: 0; }
 .market-help-empty p { margin-bottom: 0; color: #655b5b; }

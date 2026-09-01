@@ -52,6 +52,7 @@ function getDraft(id: string): MarketDraft {
 function updateDraft(id: string, field: keyof MarketDraft, value: string) {
   drafts.value[id] = { ...getDraft(id), [field]: value }
   delete saveError.value[id]
+  if (savedId.value === id) savedId.value = null
 }
 
 function draftToMarketData(id: string): MarketData {
@@ -70,6 +71,18 @@ function draftToMarketData(id: string): MarketData {
 
 function draftIsComplete(id: string) {
   return completeMarketMappingSchema.safeParse(draftToMarketData(id)).success
+}
+
+function draftMatchesStored(id: string) {
+  const stored = storedMatches.value[id]
+  if (!stored) return false
+  const draft = draftToMarketData(id)
+  return draft.name === stored.name
+    && draft.street === stored.street
+    && draft.houseNumber === stored.houseNumber
+    && draft.zip === stored.zip
+    && draft.city === stored.city
+    && draft.country === stored.country
 }
 
 function save(id: string) {
@@ -162,8 +175,8 @@ function downloadContribution() {
           </div>
         </fieldset>
         <div class="market-help-actions">
-          <button class="button primary" type="button" :disabled="!draftIsComplete(market.id)" @click="save(market.id)">{{ t('saveLocalMatch') }}</button>
-          <button v-if="storedMatches[market.id]" class="text-button" type="button" @click="reset(market.id)">{{ t('deleteLocalMatch') }}</button>
+          <button class="button primary" type="button" :disabled="!draftIsComplete(market.id) || draftMatchesStored(market.id)" @click="save(market.id)">{{ t(!storedMatches[market.id] ? 'saveLocalMatch' : draftMatchesStored(market.id) ? 'localMatchSavedButton' : 'updateLocalMatch') }}</button>
+          <button v-if="storedMatches[market.id]" class="button delete-local-match" type="button" @click="reset(market.id)">{{ t('deleteLocalMatch') }}</button>
           <span v-if="savedId === market.id" role="status">{{ t('savedInline') }}</span>
           <span v-if="saveError[market.id]" role="alert">{{ saveError[market.id] }}</span>
         </div>
