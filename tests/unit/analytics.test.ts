@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   aggregateAccumulatedDays, aggregateDays, chronologicalMonthlySpend,
-  filterReceipts, summaryStats, weekdayHourMatrix, yearlySeries,
+  basketExtremes, cadenceDistribution, dayOfLeapYear, filterReceipts,
+  hourlyAggregates, marketAggregates, regularityStats, spendingPace,
+  summaryStats, weekdayHourMatrix, yearlySeries,
 } from '../../src/domain/receipts/analytics'
 import type { Receipt } from '../../src/domain/receipts/types'
 
@@ -47,5 +49,40 @@ describe('receipt analytics', () => {
       totalCents: 15000,
       averageCents: 7500,
     })
+  })
+  it('aligns spending pace to a leap-year calendar', () => {
+    const paceReceipts: Receipt[] = [
+      { ...receipts[0], id: 'a', localTimestamp: '2024-02-29T10:00:00', totalCents: 100 },
+      { ...receipts[0], id: 'b', localTimestamp: '2025-03-01T10:00:00', totalCents: 200 },
+    ]
+    expect(dayOfLeapYear('2024-02-29')).toBe(60)
+    expect(dayOfLeapYear('2025-03-01')).toBe(61)
+    expect(spendingPace(paceReceipts).map((series) => series.points[0].dayOfYear)).toEqual([60, 61])
+  })
+  it('calculates market and hourly medians', () => {
+    expect(marketAggregates(receipts.slice(0, 3)).find((item) => item.marketId === '1')).toMatchObject({ trips: 2, spendCents: 7000, medianCents: 3500 })
+    expect(hourlyAggregates(receipts.slice(0, 3))[12]).toMatchObject({ trips: 2, spendCents: 8000, medianCents: 4000 })
+  })
+  it('uses exact cadence bucket boundaries', () => {
+    const values = Array.from({ length: 4 }, (_, index) => ({ ...receipts[0], id: String(index), localTimestamp: `2026-01-${String(index + 1).padStart(2, '0')}T10:00:00` }))
+    expect(cadenceDistribution(values).find((bucket) => bucket.key === 'oneToTwoDays')?.count).toBe(3)
+    expect(cadenceDistribution(values).reduce((sum, bucket) => sum + bucket.share, 0)).toBe(1)
+  })
+  it('includes quiet weeks and computes calendar regularity', () => {
+    const values = [
+      { ...receipts[0], id: 'a', localTimestamp: '2026-01-05T10:00:00' },
+      { ...receipts[0], id: 'b', localTimestamp: '2026-01-05T14:00:00' },
+      { ...receipts[0], id: 'c', localTimestamp: '2026-01-26T10:00:00' },
+    ]
+    const result = regularityStats(values)
+    expect(result.weeks.map((week) => week.trips)).toEqual([2, 0, 0, 1])
+    expect(result.repeatVisitDays).toBe(1)
+    expect(result.activeWeekStreak).toBe(1)
+    expect(result.busiestWeek?.date).toBe('2026-01-05')
+  })
+  it('ignores non-positive baskets and resolves ties deterministically', () => {
+    const tied = [{ ...receipts[0], id: 'b', totalCents: 100 }, { ...receipts[0], id: 'a', localTimestamp: '2026-08-30T10:00:00', totalCents: 100 }, { ...receipts[0], id: 'zero', totalCents: 0 }]
+    expect(basketExtremes(tied).smallest?.id).toBe('a')
+    expect(basketExtremes(tied).largest?.id).toBe('b')
   })
 })

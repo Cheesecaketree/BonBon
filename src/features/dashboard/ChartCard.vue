@@ -18,7 +18,7 @@ const accessibleDescription = computed(() => props.description || props.copy || 
 
 <template>
   <article class="chart-card" :class="{ dense }" :aria-labelledby="titleId" :aria-describedby="descriptionId">
-    <header><h3 :id="titleId">{{ title }}</h3><p v-if="copy">{{ copy }}</p></header>
+    <header class="chart-card-heading"><div><h3 :id="titleId">{{ title }}</h3><p v-if="copy">{{ copy }}</p></div><slot name="actions" /></header>
     <p :id="descriptionId" class="sr-only">{{ accessibleDescription }}</p>
     <VChart class="chart" :class="{ tall }" :option="option" autoresize role="img" :aria-label="accessibleDescription" />
   </article>

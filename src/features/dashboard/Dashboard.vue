@@ -3,16 +3,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { EChartsOption } from 'echarts'
 import type { DayAggregate, Receipt } from '../../domain/receipts/types'
-import {
-  WEEKDAYS_DE, WEEKDAYS_EN, aggregateAccumulatedDays, aggregateDays,
-  filterReceipts, hourlyTrips, monthlySpend, receiptYear, scatterData,
-  summaryStats, weekdayHourMatrix, weekdaySeries, weeklyTrips,
-} from '../../domain/receipts/analytics'
-import {
-  getMarketDisplayName,
-  getMarketSource,
-  getMarketShortName,
-} from '../../domain/receipts/markets'
+import { WEEKDAYS_DE, WEEKDAYS_EN, aggregateAccumulatedDays, aggregateDays, basketExtremes, cadenceDistribution, filterReceipts, hourlyAggregates, marketAggregates, monthlySpend, receiptYear, regularityStats, spendingPace, summaryStats, weekdayHourMatrix } from '../../domain/receipts/analytics'
+import { getMarketDisplayName, getMarketSource, getMarketShortName } from '../../domain/receipts/markets'
 import { getStoredLocalMarketMatches } from '../../domain/receipts/marketContributions'
 import ActivityCalendar from './ActivityCalendar.vue'
 import ChartCard from './ChartCard.vue'
@@ -20,398 +12,80 @@ import ChartCard from './ChartCard.vue'
 const props = defineProps<{ receipts: Receipt[]; locale: 'de' | 'en' }>()
 const emit = defineEmits<{ addReceipts: []; improveMarkets: [] }>()
 const { t } = useI18n()
-const years = computed(() => [...new Set(props.receipts.map((receipt) => Number(receipt.localTimestamp.slice(0, 4))))].sort((a, b) => b - a))
-const markets = computed(() => [...new Set(props.receipts.map((receipt) => receipt.marketId))].sort())
-const selectedYear = ref<number | 'all'>(Math.max(...years.value))
+type View = 'overview' | 'spending' | 'habits'
+type Metric = 'spend' | 'trips' | 'median'
+const years = computed(() => [...new Set(props.receipts.map(receiptYear))].sort((a,b) => b-a))
+const markets = computed(() => [...new Set(props.receipts.map(r => r.marketId))].sort())
+const selectedYear = ref<number|'all'>(Math.max(...years.value))
 const selectedMarkets = ref(new Set(markets.value))
-const selectedDay = ref<DayAggregate>()
-const dayPanelRef = ref<HTMLElement>()
-const dayCloseRef = ref<HTMLButtonElement>()
-const dayTrigger = ref<HTMLElement>()
-const isMobile = ref(false)
+const activeView = ref<View>('overview')
+const marketMetric = ref<Metric>('spend'); const hourMetric = ref<Metric>('trips')
+const selectedDay = ref<DayAggregate>(); const dayPanelRef = ref<HTMLElement>(); const dayCloseRef = ref<HTMLButtonElement>(); const dayTrigger = ref<HTMLElement>()
+const isMobile = ref(false); let mobileQuery: MediaQueryList | undefined
 const localMarketMatches = getStoredLocalMarketMatches()
-
-let mobileQuery: MediaQueryList | undefined
-function updateMobile(event?: MediaQueryListEvent) {
-  isMobile.value = event ? event.matches : Boolean(mobileQuery?.matches)
-}
-
-onMounted(() => {
-  mobileQuery = window.matchMedia('(max-width: 720px)')
-  updateMobile()
-  mobileQuery.addEventListener('change', updateMobile)
-})
-
-onBeforeUnmount(() => mobileQuery?.removeEventListener('change', updateMobile))
-
-function marketDisplayName(marketId: string) {
-  return getMarketDisplayName(marketId, t('market'), localMarketMatches)
-}
-
-function marketShortName(marketId: string) {
-  return getMarketShortName(marketId, t('market'), localMarketMatches)
-}
-
-function isLocalMarket(marketId: string) {
-  return getMarketSource(marketId, localMarketMatches) === 'local'
-}
-
-watch(years, (values) => {
-  if (selectedYear.value !== 'all' && !values.includes(selectedYear.value)) selectedYear.value = Math.max(...values)
-})
-watch(markets, (values, oldValues) => {
-  if (!oldValues?.length || selectedMarkets.value.size === oldValues.length) selectedMarkets.value = new Set(values)
-})
-
-const isAllYears = computed(() => selectedYear.value === 'all')
+onMounted(() => { mobileQuery = matchMedia('(max-width: 720px)'); isMobile.value = mobileQuery.matches; mobileQuery.addEventListener('change', mobileChanged) })
+onBeforeUnmount(() => { mobileQuery?.removeEventListener('change', mobileChanged); document.body.classList.remove('dialog-open') })
+function mobileChanged(e: MediaQueryListEvent) { isMobile.value = e.matches }
+watch(years, v => { if (selectedYear.value !== 'all' && !v.includes(selectedYear.value)) selectedYear.value = Math.max(...v) })
+watch(markets, (v,old) => { if (!old?.length || selectedMarkets.value.size === old.length) selectedMarkets.value = new Set(v) })
 const filtered = computed(() => filterReceipts(props.receipts, selectedYear.value, selectedMarkets.value))
-const availableYears = computed(() => {
-  const y = [...new Set(filtered.value.map(receiptYear))].sort((a, b) => b - a)
-  return y.length ? y : years.value
-})
-const hasMultipleYears = computed(() => availableYears.value.length > 1)
-
+const isAllYears = computed(() => selectedYear.value === 'all')
 const stats = computed(() => summaryStats(filtered.value))
-const days = computed(() => {
-  if (isAllYears.value) {
-    return aggregateAccumulatedDays(filtered.value, 2024)
-  }
-  return aggregateDays(filtered.value)
-})
+const days = computed(() => isAllYears.value ? aggregateAccumulatedDays(filtered.value, 2024) : aggregateDays(filtered.value))
 const weekdays = computed(() => props.locale === 'de' ? WEEKDAYS_DE : WEEKDAYS_EN)
-const months = computed(() => Array.from({ length: 12 }, (_, index) => new Intl.DateTimeFormat(props.locale === 'de' ? 'de-DE' : 'en-GB', { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(2024, index, 1)))))
+const months = computed(() => Array.from({length:12},(_,i) => new Intl.DateTimeFormat(props.locale === 'de' ? 'de-DE':'en-GB',{month:'short',timeZone:'UTC'}).format(new Date(Date.UTC(2024,i,1)))))
+const currency = computed(() => new Intl.NumberFormat(props.locale === 'de' ? 'de-DE':'en-GB',{style:'currency',currency:'EUR'}))
+const integer = computed(() => new Intl.NumberFormat(props.locale === 'de' ? 'de-DE':'en-GB'))
+const percent = computed(() => new Intl.NumberFormat(props.locale === 'de' ? 'de-DE':'en-GB',{style:'percent',maximumFractionDigits:0}))
+const tabs = computed(() => ([{id:'overview' as View,label:t('overviewTab')},{id:'spending' as View,label:t('spendingTab')},{id:'habits' as View,label:t('habitsTab')}]))
+function money(c:number) { return currency.value.format(c/100) }
+function formatDate(s:string) { const [y,m,d]=s.split('-').map(Number); return new Intl.DateTimeFormat(props.locale === 'de'?'de-DE':'en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,d))) }
+function formatMonthDay(s:string) { const [y,m,d]=s.split('-').map(Number); return new Intl.DateTimeFormat(props.locale === 'de'?'de-DE':'en-GB',{day:'2-digit',month:'short',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,d))) }
+function shortDate(s:string) { const [y,m,d]=s.split('-').map(Number); return new Intl.DateTimeFormat(props.locale === 'de'?'de-DE':'en-GB',{day:'2-digit',month:'2-digit',year:isAllYears.value?'2-digit':undefined,timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,d))) }
+function marketDisplayName(id:string) { return getMarketDisplayName(id,t('market'),localMarketMatches) }
+function marketShortName(id:string) { return getMarketShortName(id,t('market'),localMarketMatches) }
+function toggleMarket(id:string) { const n=new Set(selectedMarkets.value); n.has(id)?n.delete(id):n.add(id); selectedMarkets.value=n }
+function switchTab(view:View,focus=false) { activeView.value=view; nextTick(() => { if(focus) document.getElementById(`dashboard-tab-${view}`)?.focus() }) }
+function handleTabKeys(e:KeyboardEvent,i:number) { if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return; e.preventDefault(); const n=e.key==='Home'?0:e.key==='End'?2:(i+(e.key==='ArrowRight'?1:-1)+3)%3; switchTab(tabs.value[n].id,true) }
+function openDay(day:DayAggregate) { dayTrigger.value=document.activeElement as HTMLElement; selectedDay.value=day }
+function openReceipt(r:Receipt) { openDay({date:r.localTimestamp.slice(0,10),totalCents:r.totalCents,trips:1,averageCents:r.totalCents,receipts:[r]}) }
+function closeDay() { selectedDay.value=undefined }
+function handleDayKeys(e:KeyboardEvent) { if(e.key==='Escape'){e.preventDefault();closeDay();return} if(e.key!=='Tab'||!dayPanelRef.value)return; const f=[...dayPanelRef.value.querySelectorAll<HTMLElement>('button,[href],[tabindex]:not([tabindex="-1"])')]; if(!f.length)return; if(e.shiftKey&&document.activeElement===f[0]){e.preventDefault();f.at(-1)!.focus()}else if(!e.shiftKey&&document.activeElement===f.at(-1)){e.preventDefault();f[0].focus()} }
+watch(selectedDay,async day => { document.body.classList.toggle('dialog-open',Boolean(day)); if(day){await nextTick();dayCloseRef.value?.focus()}else dayTrigger.value?.focus() })
 
-const currency = computed(() => new Intl.NumberFormat(props.locale === 'de' ? 'de-DE' : 'en-GB', { style: 'currency', currency: 'EUR' }))
-const integer = computed(() => new Intl.NumberFormat(props.locale === 'de' ? 'de-DE' : 'en-GB'))
-
-function money(cents: number) { return currency.value.format(cents / 100) }
-function formatDate(date: string) {
-  const [year, month, day] = date.split('-').map(Number)
-  return new Intl.DateTimeFormat(props.locale === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)))
-}
-function formatMonthDay(date: string) {
-  const [year, month, day] = date.split('-').map(Number)
-  return new Intl.DateTimeFormat(props.locale === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)))
-}
-function shortDate(date: string) {
-  const [year, month, day] = date.split('-').map(Number)
-  return new Intl.DateTimeFormat(props.locale === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: '2-digit', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)))
-}
-function shortDateWithYear(date: string) {
-  const [year, month, day] = date.split('-').map(Number)
-  return new Intl.DateTimeFormat(props.locale === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)))
-}
-function interval(hours: number | null) {
-  if (hours === null) return '–'
-  return hours >= 48 ? t('intervalDays', { days: new Intl.NumberFormat(props.locale === 'de' ? 'de-DE' : 'en-GB', { maximumFractionDigits: 1 }).format(hours / 24) }) : t('intervalHours', { hours: Math.round(hours) })
-}
-function toggleMarket(market: string) {
-  const next = new Set(selectedMarkets.value)
-  next.has(market) ? next.delete(market) : next.add(market)
-  selectedMarkets.value = next
-}
-function selectAllMarkets() { selectedMarkets.value = new Set(markets.value) }
-
-function openDay(day: DayAggregate) {
-  dayTrigger.value = document.activeElement as HTMLElement
-  selectedDay.value = day
-}
-
-function closeDay() {
-  selectedDay.value = undefined
-}
-
-function handleDayKeys(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    closeDay()
-    return
-  }
-  if (event.key !== 'Tab' || !dayPanelRef.value) return
-  const focusable = [...dayPanelRef.value.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
-  if (!focusable.length) return
-  const first = focusable[0]
-  const last = focusable[focusable.length - 1]
-  if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault()
-    last.focus()
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault()
-    first.focus()
-  }
-}
-
-watch(selectedDay, async (day) => {
-  document.body.classList.toggle('dialog-open', Boolean(day))
-  if (day) {
-    await nextTick()
-    dayCloseRef.value?.focus()
-  } else {
-    dayTrigger.value?.focus()
-  }
-})
-
-onBeforeUnmount(() => document.body.classList.remove('dialog-open'))
-
-function chartBase() {
-  return {
-    aria: { enabled: true, decal: { show: false } },
-    textStyle: { fontFamily: 'Inter, system-ui, sans-serif', color: '#4f4343', fontSize: isMobile.value ? 10 : 12 },
-    grid: { left: isMobile.value ? 38 : 44, right: isMobile.value ? 8 : 18, top: 25, bottom: isMobile.value ? 30 : 38, containLabel: false },
-    tooltip: { trigger: 'axis' as const, confine: true, triggerOn: 'mousemove|click|mousewheel' as const, backgroundColor: '#241d1d', borderWidth: 0, textStyle: { color: '#fffaf1' } },
-  }
-}
-
-const weekdayTripOption = computed<EChartsOption>(() => ({ ...chartBase(), xAxis: { type: 'category', data: weekdays.value, axisLine: { lineStyle: { color: '#cfc1b4' } }, axisTick: { show: false } }, yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#e8ddd2' } } }, series: [{ type: 'bar', data: weekdaySeries(filtered.value).trips, itemStyle: { color: '#9b2848', borderRadius: [8, 8, 0, 0] }, barMaxWidth: 34 }] }))
-const weekdaySpendOption = computed<EChartsOption>(() => ({ ...chartBase(), xAxis: { type: 'category', data: weekdays.value, axisLine: { lineStyle: { color: '#cfc1b4' } }, axisTick: { show: false } }, yAxis: { type: 'value', axisLabel: { formatter: '€{value}' }, splitLine: { lineStyle: { color: '#e8ddd2' } } }, series: [{ type: 'bar', data: weekdaySeries(filtered.value).spendCents.map((value) => value / 100), itemStyle: { color: '#d98470', borderRadius: [8, 8, 0, 0] }, barMaxWidth: 34 }] }))
-const hourlyOption = computed<EChartsOption>(() => ({ ...chartBase(), xAxis: { type: 'category', data: Array.from({ length: 24 }, (_, hour) => `${hour}`), axisLabel: { interval: isMobile.value ? 2 : 0 }, axisLine: { lineStyle: { color: '#cfc1b4' } }, axisTick: { show: false } }, yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#e8ddd2' } } }, series: [{ type: 'bar', data: hourlyTrips(filtered.value), itemStyle: { color: '#6f1732', borderRadius: [5, 5, 0, 0] }, barMaxWidth: 18 }] }))
-
-const yearColors = ['#9b2848', '#d98470', '#6f1732', '#c4627a', '#4a1523', '#e29b82', '#823146', '#f0a289']
-
-const monthlyOption = computed<EChartsOption>(() => {
-  if (isAllYears.value && hasMultipleYears.value) {
-    const yearsList = [...availableYears.value].sort((a, b) => a - b)
-    const seriesList = yearsList.map((year, idx) => {
-      const yearReceipts = filtered.value.filter((r) => receiptYear(r) === year)
-      const spendArray = monthlySpend(yearReceipts)
-      return {
-        name: String(year),
-        type: 'bar' as const,
-        stack: 'total',
-        emphasis: { focus: 'series' as const },
-        data: spendArray.map((value) => value / 100),
-        itemStyle: {
-          color: yearColors[idx % yearColors.length],
-          borderRadius: idx === yearsList.length - 1 ? [6, 6, 0, 0] : 0,
-        },
-        barMaxWidth: 36,
-      }
-    })
-
-    return {
-      ...chartBase(),
-      legend: {
-        show: true,
-        top: 0,
-        right: 16,
-        textStyle: { color: '#695d5d', fontSize: 11, fontWeight: 700 },
-        data: yearsList.map(String),
-      },
-      grid: { ...chartBase().grid, top: 35 },
-      tooltip: {
-        ...chartBase().tooltip,
-        formatter: (params: any) => {
-          const items = Array.isArray(params) ? params : [params]
-          if (!items.length) return ''
-          const monthName = items[0].name
-          let total = 0
-          let rows = ''
-          for (const item of items) {
-            const val = Number(item.value) || 0
-            if (val > 0) {
-              total += val
-              rows += `<div style="display:flex;justify-content:space-between;gap:14px;font-size:12px;margin-top:2px;"><span>${item.marker} ${item.seriesName}:</span><strong>${currency.value.format(val)}</strong></div>`
-            }
-          }
-          return `<strong>${monthName}</strong> · Total: <strong>${currency.value.format(total)}</strong><hr style="margin:6px 0;border:0;border-top:1px solid rgba(255,255,255,.2);"/>${rows || '0 €'}`
-        },
-      },
-      xAxis: {
-        type: 'category',
-        data: months.value,
-        axisLine: { lineStyle: { color: '#cfc1b4' } },
-        axisTick: { show: false },
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: { formatter: '€{value}' },
-        splitLine: { lineStyle: { color: '#e8ddd2' } },
-      },
-      series: seriesList,
-    }
-  }
-
-  return {
-    ...chartBase(),
-    xAxis: {
-      type: 'category',
-      data: months.value,
-      axisLine: { lineStyle: { color: '#cfc1b4' } },
-      axisTick: { show: false },
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { formatter: '€{value}' },
-      splitLine: { lineStyle: { color: '#e8ddd2' } },
-    },
-    series: [
-      {
-        type: 'bar',
-        data: monthlySpend(filtered.value).map((value) => value / 100),
-        itemStyle: { color: '#9b2848', borderRadius: [8, 8, 0, 0] },
-        barMaxWidth: 35,
-      },
-    ],
-  }
-})
-
-const weeklyOption = computed<EChartsOption>(() => {
-  const series = weeklyTrips(filtered.value)
-  const useYearInDate = isAllYears.value && hasMultipleYears.value
-  return {
-    ...chartBase(),
-    tooltip: {
-      ...chartBase().tooltip,
-      formatter: (params: any) => {
-        const item = Array.isArray(params) ? params[0] : params
-        if (!item) return ''
-        const dateStr = item.name
-        const count = item.value
-        const tripsUnit = count === 1 ? t('trip') : t('tripsMode').toLowerCase()
-        return `${t('weekStarting', { date: dateStr })}<br><strong>${count} ${tripsUnit}</strong>`
-      },
-    },
-    xAxis: {
-      type: 'category',
-      data: series.map((item) => useYearInDate ? shortDateWithYear(item.date) : shortDate(item.date)),
-      axisLabel: { interval: Math.max(0, Math.floor(series.length / 8) - 1), rotate: useYearInDate && series.length > 18 ? 30 : 0 },
-      axisLine: { lineStyle: { color: '#cfc1b4' } },
-      axisTick: { show: false },
-    },
-    yAxis: { type: 'value', minInterval: 1, splitLine: { lineStyle: { color: '#e8ddd2' } } },
-    series: [{
-      type: 'line',
-      name: t('weeklyTrips'),
-      data: series.map((item) => item.trips),
-      smooth: true,
-      symbolSize: series.length > 60 ? 4 : 7,
-      lineStyle: { color: '#9b2848', width: 3 },
-      itemStyle: { color: '#9b2848' },
-      areaStyle: { color: 'rgba(155,40,72,.1)' },
-    }],
-  }
-})
-
-const heatmapOption = computed<EChartsOption>(() => {
-  const matrix = weekdayHourMatrix(filtered.value)
-  const data = matrix.flatMap((row, day) => row.map((value, hour) => [hour, day, value]))
-  const max = Math.max(1, ...data.map((item) => Number(item[2])))
-  return {
-    ...chartBase(), grid: { left: isMobile.value ? 28 : 54, right: isMobile.value ? 5 : 24, top: 18, bottom: isMobile.value ? 42 : 54 }, tooltip: { trigger: 'item', confine: true, position: 'top' },
-    xAxis: { type: 'category', data: Array.from({ length: 24 }, (_, hour) => `${hour}`), axisLabel: { interval: isMobile.value ? 2 : 0 }, splitArea: { show: true }, axisTick: { show: false }, axisLine: { show: false } },
-    yAxis: { type: 'category', data: weekdays.value, splitArea: { show: true }, axisTick: { show: false }, axisLine: { show: false } },
-    visualMap: { min: 0, max, calculable: false, orient: 'horizontal', left: 'center', bottom: 0, inRange: { color: ['#f5ede3', '#e7b6aa', '#9b2848', '#541125'] }, textStyle: { color: '#695d5d' } },
-    series: [{ type: 'heatmap', data, label: { show: false }, itemStyle: { borderColor: '#fffaf1', borderWidth: 2, borderRadius: 3 } }],
-  }
-})
-
-const scatterOption = computed<EChartsOption>(() => {
-  const data = scatterData(filtered.value)
-  const dates = [...new Set(data.map((item) => item.date))].sort()
-  const useYearInDate = isAllYears.value && hasMultipleYears.value
-  return {
-    ...chartBase(), tooltip: { trigger: 'item', confine: true, triggerOn: 'mousemove|click|mousewheel', formatter: (params: any) => `${formatDate(params.value[0])}<br>${String(Math.floor(params.value[1])).padStart(2, '0')}:${String(Math.round(params.value[1] % 1 * 60)).padStart(2, '0')} · ${money(params.value[2] * 100)}<br>${marketDisplayName(params.value[3])}` },
-    xAxis: { type: 'category', data: dates, axisLabel: { formatter: (value: string) => useYearInDate ? shortDateWithYear(value) : shortDate(value), interval: Math.max(0, Math.floor(dates.length / (isMobile.value ? 4 : 7)) - 1), rotate: isMobile.value ? 40 : 30 }, axisTick: { show: false }, axisLine: { lineStyle: { color: '#cfc1b4' } } },
-    yAxis: { type: 'value', min: 0, max: 24, interval: 4, axisLabel: { formatter: (value: number) => `${String(value).padStart(2, '0')}:00` }, splitLine: { lineStyle: { color: '#e8ddd2' } } },
-    series: [{ type: 'scatter', data: data.map((item) => [item.date, item.hour, item.totalCents / 100, item.marketId]), symbolSize: (value: number[]) => (isMobile.value ? 6 : 7) + Math.min(isMobile.value ? 10 : 13, Math.sqrt(value[2]) * (isMobile.value ? 1.25 : 1.6)), itemStyle: { color: '#9b2848', opacity: .72 } }],
-  }
-})
+function base(){return {aria:{enabled:true},textStyle:{fontFamily:'Inter,system-ui,sans-serif',color:'#4f4343',fontSize:isMobile.value?10:12},grid:{left:isMobile.value?58:72,right:22,top:28,bottom:58},tooltip:{trigger:'axis' as const,confine:true,backgroundColor:'#241d1d',borderWidth:0,textStyle:{color:'#fffaf1'}}}}
+function axisTitle(name:string,gap=34){return {name,nameLocation:'middle' as const,nameGap:gap,nameTextStyle:{color:'#756767',fontSize:isMobile.value?10:11,fontWeight:700}}}
+function metricAxis(metric:Metric){return t(`axes.${metric}`)}
+const colors=['#9b2848','#d98470','#6f1732','#c4627a','#4a1523','#e29b82']
+const pace = computed(() => spendingPace(props.receipts,selectedMarkets.value))
+const paceOption = computed<EChartsOption>(() => { const chosen=selectedYear.value==='all'?years.value[0]:selectedYear.value; return {...base(),legend:{top:0,right:8},grid:{...base().grid,top:48},xAxis:{type:'value',min:1,max:366,...axisTitle(t('axes.calendarDay'),34),axisLabel:{formatter:(d:number)=>new Intl.DateTimeFormat(props.locale==='de'?'de-DE':'en-GB',{month:'short',timeZone:'UTC'}).format(new Date(Date.UTC(2024,0,d)))},splitLine:{show:false}},yAxis:{type:'value',...axisTitle(t('axes.cumulativeSpend'),isMobile.value?48:56),axisLabel:{formatter:'{value} €'},splitLine:{lineStyle:{color:'#e8ddd2'}}},tooltip:{...base().tooltip,formatter:(p:any)=>(Array.isArray(p)?p:[p]).map((x:any)=>`${x.marker} ${x.seriesName}: <strong>${money(x.value[1]*100)}</strong>`).join('<br>')},series:pace.value.map((s,i)=>({name:String(s.year),type:'line',showSymbol:false,data:s.points.map(p=>[p.dayOfYear,p.cumulativeCents/100]),lineStyle:{width:s.year===chosen?4:2,opacity:s.year===chosen?1:.45,color:colors[i%colors.length]},itemStyle:{color:colors[i%colors.length]},emphasis:{focus:'series'}}))} })
+const monthlyOption = computed<EChartsOption>(() => { const ys=(selectedYear.value==='all'?years.value.slice().reverse():[selectedYear.value]); return {...base(),legend:{show:ys.length>1,top:0,right:8},grid:{...base().grid,top:ys.length>1?45:28},xAxis:{type:'category',data:months.value,...axisTitle(t('axes.month')),axisTick:{show:false}},yAxis:{type:'value',...axisTitle(t('axes.spend'),isMobile.value?48:56),axisLabel:{formatter:'{value} €'},splitLine:{lineStyle:{color:'#e8ddd2'}}},series:ys.map((y,i)=>({name:String(y),type:'bar',data:monthlySpend(filtered.value.filter(r=>receiptYear(r)===y)).map(v=>v/100),itemStyle:{color:colors[i%colors.length],borderRadius:[5,5,0,0]},barMaxWidth:28}))} })
+const marketData = computed(() => marketAggregates(filtered.value).sort((a,b)=>(marketMetric.value==='spend'?b.spendCents-a.spendCents:marketMetric.value==='trips'?b.trips-a.trips:b.medianCents-a.medianCents)||a.marketId.localeCompare(b.marketId)))
+const marketOption = computed<EChartsOption>(() => ({...base(),grid:{left:isMobile.value?118:205,right:22,top:16,bottom:58},xAxis:{type:'value',...axisTitle(metricAxis(marketMetric.value)),minInterval:marketMetric.value==='trips'?1:undefined,axisLabel:{formatter:marketMetric.value==='trips'?'{value}':'{value} €'},splitLine:{lineStyle:{color:'#e8ddd2'}}},yAxis:{type:'category',...axisTitle(t('axes.market'),isMobile.value?106:190),inverse:true,data:marketData.value.map(x=>marketShortName(x.marketId)),axisLabel:{width:isMobile.value?90:175,overflow:'truncate'}},tooltip:{trigger:'item',confine:true,formatter:(p:any)=>{const x=marketData.value[p.dataIndex];return `${marketDisplayName(x.marketId)}<br>${t('spend')}: <strong>${money(x.spendCents)}</strong><br>${t('trips')}: <strong>${x.trips}</strong><br>${t('medianBasket')}: <strong>${money(x.medianCents)}</strong>`}},series:[{type:'bar',data:marketData.value.map(x=>marketMetric.value==='spend'?x.spendCents/100:marketMetric.value==='trips'?x.trips:x.medianCents/100),itemStyle:{color:'#9b2848',borderRadius:[0,6,6,0]},barMaxWidth:30}]}))
+const hours=computed(()=>hourlyAggregates(filtered.value))
+const hourlyOption=computed<EChartsOption>(()=>({...base(),xAxis:{type:'category',data:hours.value.map(x=>String(x.hour)),...axisTitle(t('axes.hourOfDay')),axisLabel:{interval:isMobile.value?2:0},axisTick:{show:false}},yAxis:{type:'value',...axisTitle(metricAxis(hourMetric.value),isMobile.value?48:56),minInterval:hourMetric.value==='trips'?1:undefined,axisLabel:{formatter:hourMetric.value==='trips'?'{value}':'{value} €'},splitLine:{lineStyle:{color:'#e8ddd2'}}},series:[{type:'bar',data:hours.value.map(x=>hourMetric.value==='spend'?x.spendCents/100:hourMetric.value==='trips'?x.trips:x.medianCents/100),itemStyle:{color:'#6f1732',borderRadius:[5,5,0,0]},barMaxWidth:19}]}))
+const cadence=computed(()=>cadenceDistribution(filtered.value))
+const cadenceOption=computed<EChartsOption>(()=>({...base(),grid:{...base().grid,bottom:isMobile.value?76:58},xAxis:{type:'category',data:cadence.value.map(x=>t(`cadence.${x.key}`)),...axisTitle(t('axes.interval'),isMobile.value?52:34),axisLabel:{interval:0,rotate:isMobile.value?35:0},axisTick:{show:false}},yAxis:{type:'value',...axisTitle(t('axes.count'),isMobile.value?42:48),minInterval:1,splitLine:{lineStyle:{color:'#e8ddd2'}}},tooltip:{trigger:'item',confine:true,formatter:(p:any)=>`${p.name}<br><strong>${p.value}</strong> · ${percent.value.format(cadence.value[p.dataIndex].share)}`},series:[{type:'bar',data:cadence.value.map(x=>x.count),itemStyle:{color:'#d98470',borderRadius:[6,6,0,0]},barMaxWidth:42}]}))
+const regularity=computed(()=>regularityStats(filtered.value))
+const regularityOption=computed<EChartsOption>(()=>({...base(),grid:{...base().grid,bottom:66},tooltip:{...base().tooltip,formatter:(p:any)=>`${t('weekStarting',{date:p[0]?.name})}<br><strong>${p[0]?.value??0} ${t('tripsMode').toLowerCase()}</strong>`},xAxis:{type:'category',data:regularity.value.weeks.map(w=>shortDate(w.date)),...axisTitle(t('axes.week'),44),axisLabel:{interval:Math.max(0,Math.floor(regularity.value.weeks.length/(isMobile.value?4:8))-1),rotate:25},axisTick:{show:false}},yAxis:{type:'value',...axisTitle(t('axes.trips'),isMobile.value?42:48),minInterval:1,splitLine:{lineStyle:{color:'#e8ddd2'}}},series:[{type:'line',data:regularity.value.weeks.map(w=>({value:w.trips,itemStyle:{color:w.date===regularity.value.busiestWeek?.date?'#6f1732':'#9b2848'}})),smooth:true,symbolSize:7,lineStyle:{color:'#9b2848',width:3},areaStyle:{color:'rgba(155,40,72,.09)'}}]}))
+const heatmapOption=computed<EChartsOption>(()=>{const data=weekdayHourMatrix(filtered.value).flatMap((row,d)=>row.map((v,h)=>[h,d,v]));return {...base(),grid:{left:isMobile.value?58:70,right:8,top:16,bottom:82},tooltip:{trigger:'item',confine:true},xAxis:{type:'category',data:hours.value.map(x=>String(x.hour)),...axisTitle(t('axes.hourOfDay'),32),axisLabel:{interval:isMobile.value?2:0},splitArea:{show:true},axisLine:{show:false},axisTick:{show:false}},yAxis:{type:'category',data:weekdays.value,...axisTitle(t('axes.weekday'),isMobile.value?45:52),splitArea:{show:true},axisLine:{show:false},axisTick:{show:false}},visualMap:{min:0,max:Math.max(1,...data.map(d=>Number(d[2]))),orient:'horizontal',left:'center',bottom:0,inRange:{color:['#f5ede3','#e7b6aa','#9b2848','#541125']}},series:[{type:'heatmap',data,itemStyle:{borderColor:'#fffaf1',borderWidth:2,borderRadius:3}}]}})
+const extremes=computed(()=>basketExtremes(filtered.value))
+const routine=computed(()=>{const m=weekdayHourMatrix(filtered.value);let best={day:0,start:0,count:0};for(let d=0;d<7;d++)for(let h=0;h<24;h+=2){const count=m[d][h]+m[d][h+1];if(count>best.count)best={day:d,start:h,count}}return best})
+const paceInsight=computed(()=>{const y=selectedYear.value==='all'?years.value[0]:selectedYear.value;const cur=pace.value.find(s=>s.year===y),prev=pace.value.find(s=>s.year===y-1);if(!cur?.points.length||!prev?.points.length)return null;const last=cur.points.at(-1)!,comp=[...prev.points].reverse().find(p=>p.dayOfYear<=last.dayOfYear);return comp?{delta:last.cumulativeCents-comp.cumulativeCents,year:y-1}:null})
 </script>
 
 <template>
-  <section class="dashboard">
-    <header class="dashboard-heading">
-      <div>
-        <h1>{{ isAllYears ? t('dashboardAllYears') : t('dashboard') }}</h1>
-        <p>{{ isAllYears ? t('dashboardAllYearsIntro') : t('dashboardIntro') }}</p>
-      </div>
-      <div class="filter-bar">
-        <button type="button" class="filter-add-btn" @click="emit('addReceipts')">
-          + {{ t('importMore') }}
-        </button>
-        <label class="filter-field">
-          <span class="filter-label">{{ t('year') }}</span>
-          <select v-model="selectedYear">
-            <option value="all">{{ t('allYears') }}</option>
-            <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
-          </select>
-        </label>
-        <div class="filter-field">
-          <span class="filter-label">{{ t('markets') }}</span>
-          <details class="market-filter">
-            <summary><span>{{ t('selected') }}</span><strong>{{ selectedMarkets.size }}/{{ markets.length }}</strong></summary>
-            <div class="market-menu">
-              <button type="button" class="market-select-all" @click="selectAllMarkets">{{ t('allMarkets') }}</button>
-              <div class="market-items-list">
-                <div v-for="market in markets" :key="market" class="market-item-row">
-                  <label class="market-item-label">
-                    <input type="checkbox" :checked="selectedMarkets.has(market)" @change="toggleMarket(market)" />
-                    <span class="market-item-name">{{ marketDisplayName(market) }}</span>
-                  </label>
-                  <button v-if="isLocalMarket(market)" class="local-match-indicator" type="button" :title="t('localMatchInfo')" :aria-label="t('localMatchOpen', { id: market })" @click="emit('improveMarkets')">ⓘ {{ t('localMatchBadge') }} ↗</button>
-                </div>
-              </div>
-            </div>
-          </details>
-        </div>
-      </div>
-    </header>
-
-    <template v-if="filtered.length">
-      <section class="stat-grid primary-stats" aria-label="Übersicht">
-        <article><span>{{ t('totalSpend') }}</span><strong>{{ money(stats.totalCents) }}</strong></article>
-        <article><span>{{ t('trips') }}</span><strong>{{ integer.format(stats.trips) }}</strong></article>
-        <article><span>{{ t('averageBasket') }}</span><strong>{{ money(stats.averageCents) }}</strong></article>
-        <article><span>{{ t('medianBasket') }}</span><strong>{{ money(stats.medianCents) }}</strong></article>
-        <article><span>{{ t('marketsVisited') }}</span><strong>{{ stats.marketCount }}</strong></article>
-      </section>
-      <section class="stat-grid secondary-stats">
-        <article><span>{{ t('averageInterval') }}</span><strong>{{ interval(stats.averageIntervalHours) }}</strong></article>
-        <article><span>{{ t('medianInterval') }}</span><strong>{{ interval(stats.medianIntervalHours) }}</strong></article>
-        <article><span>{{ t('earliest') }}</span><strong>{{ stats.earliestTime }}</strong></article>
-        <article><span>{{ t('latest') }}</span><strong>{{ stats.latestTime }}</strong></article>
-      </section>
-
-      <article class="calendar-card">
-        <header class="card-heading">
-          <div>
-            <h2>{{ t('calendar') }}</h2>
-            <p>{{ isAllYears ? t('calendarAllYearsCopy') : t('calendarCopy') }}</p>
-          </div>
-        </header>
-        <ActivityCalendar
-          :year="isAllYears ? 2024 : Number(selectedYear)"
-          :days="days"
-          :is-accumulated="isAllYears"
-          :locale="locale"
-          :local-market-matches="localMarketMatches"
-          @select="openDay"
-        />
-      </article>
-
-      <div class="chart-grid">
-        <ChartCard class="wide" dense :title="t('weekdayTime')" :copy="t('weekdayTimeCopy')" :option="heatmapOption" tall />
-        <ChartCard :title="t('weekdayTrips')" :option="weekdayTripOption" />
-        <ChartCard :title="t('weekdaySpend')" :option="weekdaySpendOption" />
-        <ChartCard
-          :title="isAllYears && hasMultipleYears ? t('monthlySpendStacked') : t('monthlySpend')"
-          :copy="isAllYears && hasMultipleYears ? t('monthlySpendStackedCopy') : undefined"
-          :option="monthlyOption"
-        />
-        <ChartCard dense :title="t('hourlyTrips')" :option="hourlyOption" />
-        <ChartCard class="wide" dense :title="t('weeklyTrips')" :copy="t('weeklyTripsCopy')" :option="weeklyOption" />
-        <ChartCard class="wide" dense :title="t('scatter')" :option="scatterOption" tall />
-      </div>
-    </template>
-    <p v-else class="empty-filtered">{{ t('emptyFiltered') }}</p>
-
-    <div v-if="selectedDay" class="day-backdrop" @click.self="closeDay">
-      <aside ref="dayPanelRef" class="day-panel" role="dialog" aria-modal="true" :aria-label="t('dayDetails')" @keydown="handleDayKeys">
-        <button ref="dayCloseRef" class="close-button" type="button" @click="closeDay" :aria-label="t('close')">×</button>
-        <p class="eyebrow">{{ t('dayDetails') }}</p><h2>{{ isAllYears ? formatMonthDay(selectedDay.date) : formatDate(selectedDay.date) }}</h2>
-        <div class="day-total"><strong>{{ money(selectedDay.totalCents) }}</strong><span>{{ selectedDay.trips }} {{ t('trips').toLowerCase() }}</span></div>
-        <ul><li v-for="receipt in selectedDay.receipts" :key="receipt.id"><time>{{ isAllYears ? `${receipt.localTimestamp.slice(0, 4)} · ` : '' }}{{ receipt.localTimestamp.slice(11, 16) }}</time><span>{{ marketShortName(receipt.marketId) }} · {{ t('receipt') }} {{ receipt.receiptNumber }}</span><strong>{{ money(receipt.totalCents) }}</strong></li></ul>
-      </aside>
-    </div>
+<section class="dashboard">
+  <header class="dashboard-heading"><div><h1>{{ isAllYears?t('dashboardAllYears'):t('dashboard') }}</h1><p>{{ isAllYears?t('dashboardAllYearsIntro'):t('dashboardIntro') }}</p></div><div class="filter-bar"><button type="button" class="filter-add-btn" @click="emit('addReceipts')">+ {{ t('importMore') }}</button><label class="filter-field"><span class="filter-label">{{ t('year') }}</span><select v-model="selectedYear"><option value="all">{{ t('allYears') }}</option><option v-for="year in years" :key="year" :value="year">{{ year }}</option></select></label><div class="filter-field"><span class="filter-label">{{ t('markets') }}</span><details class="market-filter"><summary><span>{{ t('selected') }}</span><strong>{{ selectedMarkets.size }}/{{ markets.length }}</strong></summary><div class="market-menu"><button type="button" class="market-select-all" @click="selectedMarkets=new Set(markets)">{{ t('allMarkets') }}</button><div class="market-items-list"><div v-for="market in markets" :key="market" class="market-item-row"><label class="market-item-label"><input type="checkbox" :checked="selectedMarkets.has(market)" @change="toggleMarket(market)"><span class="market-item-name">{{ marketDisplayName(market) }}</span></label><button v-if="getMarketSource(market,localMarketMatches)==='local'" class="local-match-indicator" type="button" :title="t('localMatchInfo')" :aria-label="t('localMatchOpen',{id:market})" @click="emit('improveMarkets')">ⓘ {{ t('localMatchBadge') }} ↗</button></div></div></div></details></div></div></header>
+  <nav class="analytics-tabs" role="tablist" :aria-label="t('analyticsViews')"><button v-for="(tab,index) in tabs" :id="`dashboard-tab-${tab.id}`" :key="tab.id" type="button" role="tab" :aria-selected="activeView===tab.id" :aria-controls="`dashboard-panel-${tab.id}`" :tabindex="activeView===tab.id?0:-1" @click="switchTab(tab.id)" @keydown="handleTabKeys($event,index)">{{ tab.label }}</button></nav>
+  <p v-if="!filtered.length" class="empty-filtered">{{ t('emptyFiltered') }}</p>
+  <section v-else-if="activeView==='overview'" id="dashboard-panel-overview" role="tabpanel" aria-labelledby="dashboard-tab-overview">
+    <section class="stat-grid primary-stats" :aria-label="t('overviewTab')"><article><span>{{ t('totalSpend') }}</span><strong>{{ money(stats.totalCents) }}</strong></article><article><span>{{ t('trips') }}</span><strong>{{ integer.format(stats.trips) }}</strong></article><article><span>{{ t('averageBasket') }}</span><strong>{{ money(stats.averageCents) }}</strong></article><article><span>{{ t('medianBasket') }}</span><strong>{{ money(stats.medianCents) }}</strong></article><article><span>{{ t('marketsVisited') }}</span><strong>{{ stats.marketCount }}</strong></article></section>
+    <section class="insight-strip" :aria-label="t('highlights')"><button v-if="paceInsight" type="button" @click="switchTab('spending')"><span>{{ t('spendingPace') }}</span><strong>{{ paceInsight.delta>=0?'+':'' }}{{ money(paceInsight.delta) }}</strong><small>{{ t(paceInsight.delta>=0?'paceAhead':'paceBehind',{year:paceInsight.year}) }}</small></button><button type="button" @click="switchTab('habits')"><span>{{ t('shoppingRhythm') }}</span><strong>{{ weekdays[routine.day] }} · {{ String(routine.start).padStart(2,'0') }}–{{ String(routine.start+2).padStart(2,'0') }}</strong><small>{{ t('mostCommonWindow') }}</small></button><button v-if="extremes.largest" type="button" @click="openReceipt(extremes.largest)"><span>{{ t('notableBasket') }}</span><strong>{{ money(extremes.largest.totalCents) }}</strong><small>{{ t('largestBasketOn',{date:formatDate(extremes.largest.localTimestamp.slice(0,10))}) }}</small></button></section>
+    <article class="calendar-card"><header class="card-heading"><div><h2>{{ t('calendar') }}</h2><p>{{ isAllYears?t('calendarAllYearsCopy'):t('calendarCopy') }}</p></div></header><ActivityCalendar :year="isAllYears?2024:Number(selectedYear)" :days="days" :is-accumulated="isAllYears" :locale="locale" :local-market-matches="localMarketMatches" @select="openDay" /></article>
   </section>
+  <section v-else-if="activeView==='spending'" id="dashboard-panel-spending" role="tabpanel" aria-labelledby="dashboard-tab-spending" class="chart-grid"><ChartCard class="wide" dense tall :title="t('spendingPace')" :copy="t('spendingPaceCopy')" :option="paceOption"/><ChartCard :title="t('monthlySpendComparison')" :copy="t('monthlySpendComparisonCopy')" :option="monthlyOption"/><ChartCard :title="t('marketComparison')" :copy="marketData.length===1?t('singleMarketCopy'):t('marketComparisonCopy')" :option="marketOption"><template #actions><div class="metric-toggle"><button v-for="metric in (['spend','trips','median'] as Metric[])" :key="metric" type="button" :class="{active:marketMetric===metric}" :aria-pressed="marketMetric===metric" @click="marketMetric=metric">{{ t(`metricNames.${metric}`) }}</button></div></template></ChartCard></section>
+  <section v-else id="dashboard-panel-habits" role="tabpanel" aria-labelledby="dashboard-tab-habits" class="chart-grid"><article class="chart-card wide rhythm-card"><header><div><h3>{{ t('calendarRegularity') }}</h3><p>{{ t('calendarRegularityCopy') }}</p></div></header><div class="rhythm-stats"><div><span>{{ t('longestGap') }}</span><strong>{{ regularity.longestGapHours===null?'–':t('daysValue',{value:(regularity.longestGapHours/24).toFixed(1)}) }}</strong></div><div><span>{{ t('activeWeekStreak') }}</span><strong>{{ regularity.activeWeekStreak }}</strong></div><div><span>{{ t('repeatVisitDays') }}</span><strong>{{ regularity.repeatVisitDays }}</strong></div><div><span>{{ t('busiestWeek') }}</span><strong>{{ regularity.busiestWeek?`${shortDate(regularity.busiestWeek.date)} · ${regularity.busiestWeek.trips}`:'–' }}</strong></div></div><ChartCard class="embedded-chart" dense :title="t('weeklyRhythm')" :option="regularityOption"/></article><ChartCard :title="t('tripCadence')" :copy="t('tripCadenceCopy')" :option="cadenceOption"/><ChartCard :title="t('timeOfDayProfile')" :copy="t('timeOfDayProfileCopy')" :option="hourlyOption"><template #actions><div class="metric-toggle"><button v-for="metric in (['trips','spend','median'] as Metric[])" :key="metric" type="button" :class="{active:hourMetric===metric}" :aria-pressed="hourMetric===metric" @click="hourMetric=metric">{{ t(`metricNames.${metric}`) }}</button></div></template></ChartCard><ChartCard class="wide" dense tall :title="t('weekdayTime')" :copy="t('weekdayTimeCopy')" :option="heatmapOption"/></section>
+  <div v-if="selectedDay" class="day-backdrop" @click.self="closeDay"><aside ref="dayPanelRef" class="day-panel" role="dialog" aria-modal="true" :aria-label="t('dayDetails')" @keydown="handleDayKeys"><button ref="dayCloseRef" class="close-button" type="button" @click="closeDay" :aria-label="t('close')">×</button><p class="eyebrow">{{ t('dayDetails') }}</p><h2>{{ isAllYears?formatMonthDay(selectedDay.date):formatDate(selectedDay.date) }}</h2><div class="day-total"><strong>{{ money(selectedDay.totalCents) }}</strong><span>{{ selectedDay.trips }} {{ t('trips').toLowerCase() }}</span></div><ul><li v-for="receipt in selectedDay.receipts" :key="receipt.id"><time>{{ isAllYears?`${receipt.localTimestamp.slice(0,4)} · `:'' }}{{ receipt.localTimestamp.slice(11,16) }}</time><span>{{ marketShortName(receipt.marketId) }} · {{ t('receipt') }} {{ receipt.receiptNumber }}</span><strong>{{ money(receipt.totalCents) }}</strong></li></ul></aside></div>
+</section>
 </template>
