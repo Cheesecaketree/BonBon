@@ -90,7 +90,7 @@ button:disabled { cursor: wait; opacity: .55; }
 .populated { background: #f7f1e8; }
 .dashboard { max-width: 1440px; margin: 0 auto; padding: 72px clamp(20px, 5vw, 76px) 90px; }
 .dashboard-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; margin-bottom: 42px; }
-.dashboard-heading h1 { max-width: 800px; font-size: clamp(47px, 6vw, 82px); }
+.dashboard-heading h1 { max-width: 800px; font-size: clamp(47px, 6vw, 82px); line-height: 1.1; }
 .dashboard-heading > div:first-child > p:last-child { max-width: 610px; margin: 22px 0 0; color: #695d5d; font-family: Georgia, serif; font-size: 20px; line-height: 1.5; }
 .filter-bar { display: flex; align-items: end; gap: 12px; flex: 0 0 auto; }
 .filter-add-btn { min-height: 45px; padding: 0 20px; border: 1px solid var(--berry); border-radius: 999px; color: white; background: var(--berry); font-size: 13px; font-weight: 750; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(155,40,72,.22); transition: transform .15s, background .15s; }
