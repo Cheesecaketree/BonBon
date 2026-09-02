@@ -169,3 +169,11 @@ BonBon/
 - **Transparent local retention**: Persistence is opt-in. When enabled, imported PDFs and structured receipt metadata are stored in your browser. Local market matches are stored separately on this device and can be deleted from the matching page or with **Clear data**.
 - **Local receipt viewer**: The matching tool opens original PDFs through temporary in-browser object URLs. No receipt PDF or automatically detected header is transmitted as part of a market contribution.
 - **No Third-Party Trackers**: No Google Analytics, no tracking pixels, no external CDNs at runtime.
+
+---
+
+## 📜 License
+
+BonBon's original source code and bundled market dataset are available under the [Zero-Clause BSD (0BSD) License](LICENSE). You may use, copy, modify, and distribute them for any purpose, with or without fee.
+
+The license does not grant rights to third-party material, including receipt contents, trade marks, or data copied from restricted sources. See [CONTRIBUTING.md](CONTRIBUTING.md) before submitting market data.

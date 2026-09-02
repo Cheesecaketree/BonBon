@@ -14,6 +14,10 @@ Local matches are used immediately for unknown IDs. A bundled match from a later
 
 Detected header text and receipt PDFs are local editing references only. They are not stored in the contribution JSON and must not be attached as part of the standard contribution workflow. If maintainers need more information to verify a mapping, they will ask for a privacy-safe reference separately.
 
+## Rights and licensing
+
+Only submit market data you are allowed to share. Do not submit receipt contents, personal data, trade marks, or data copied from sources with terms that prohibit redistribution. By submitting a contribution, you permit BonBon to include, modify, and distribute that contribution under the repository's [0BSD license](LICENSE).
+
 ## Import the downloaded file
 
 From the repository root, install the dependencies and place the download in the ignored contribution inbox:
