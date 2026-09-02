@@ -37,6 +37,7 @@ for (const viewport of [
   { width: 375, height: 812 },
   { width: 390, height: 844 },
   { width: 768, height: 1024 },
+  { width: 800, height: 900 },
   { width: 667, height: 375 },
 ]) {
   test(`keeps the populated dashboard inside a ${viewport.width}x${viewport.height} viewport`, async ({ page }) => {

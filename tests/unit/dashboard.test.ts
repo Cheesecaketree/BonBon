@@ -72,6 +72,8 @@ describe('dashboard local market provenance', () => {
     expect(wrapper.text()).not.toContain('Datum und Tageszeit')
     await wrapper.findAll('[role="tab"]')[2].trigger('click')
     expect(wrapper.find('#dashboard-panel-products').exists()).toBe(true)
+    expect(wrapper.findAll('.product-table th').map((th) => th.text())).toEqual(['Produkt', 'Menge', 'Ø-Preis', 'Ausgaben'])
+    expect(wrapper.findAll('.product-controls select option').map((opt) => opt.text())).toEqual(['Nach Ausgaben', 'Nach Menge', 'Nach Ø-Preis', 'Nach Name'])
     expect(wrapper.text()).toContain('PASTA')
     expect(wrapper.text()).toContain('Ø-Preis')
     expect(wrapper.text()).toContain('3,00 € / Stk.')

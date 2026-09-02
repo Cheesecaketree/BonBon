@@ -29,6 +29,7 @@ const lastFocusedReceiptId = ref<string>()
 
 const currency = computed(() => new Intl.NumberFormat(props.locale === 'de' ? 'de-DE' : 'en-GB', { style: 'currency', currency: 'EUR' }))
 const decimal = computed(() => new Intl.NumberFormat(props.locale === 'de' ? 'de-DE' : 'en-GB', { maximumFractionDigits: 3 }))
+const integer = computed(() => new Intl.NumberFormat(props.locale === 'de' ? 'de-DE' : 'en-GB', { maximumFractionDigits: 0 }))
 function money(cents: number) { return currency.value.format(cents / 100) }
 function formatDate(value: string) {
   const [year, month, day] = value.slice(0, 10).split('-').map(Number)
@@ -248,6 +249,7 @@ onBeforeUnmount(() => {
       <template v-else-if="target.kind === 'product'">
         <div class="day-total"><strong>{{ money(target.product.spendCents) }}</strong><span>{{ t('productSpend') }}</span></div>
         <dl class="receipt-facts quantity-facts">
+          <div><dt>{{ t('purchases') }}</dt><dd>{{ integer.format(target.product.occurrences) }}</dd></div>
           <div v-for="(value, unit) in target.product.quantities" :key="unit"><dt>{{ t('quantity') }}</dt><dd>{{ decimal.format(value ?? 0) }} {{ t(`quantityUnits.${unit}`) }}</dd></div>
           <div v-for="avg in productAveragePrices(target.product)" :key="`avg-${avg.unit}`"><dt>{{ t('averagePrice') }}</dt><dd>{{ money(avg.averagePriceCents) }} / {{ t(`quantityUnits.${avg.unit}`) }}</dd></div>
         </dl>

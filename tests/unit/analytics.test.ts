@@ -5,7 +5,7 @@ import {
   hourlyAggregates, marketAggregates, regularityStats, spendingPace,
   summaryStats, weekdayHourMatrix, yearlySeries,
 } from '../../src/domain/receipts/analytics'
-import { enrichmentCoverage, financialSummary, monthlyFinancials, paybackSummary, productAggregates, productAveragePrices, vatAggregates } from '../../src/domain/receipts/basketAnalytics'
+import { enrichmentCoverage, financialSummary, monthlyFinancials, paybackSummary, productAggregates, productAveragePrices, productTotalQuantity, vatAggregates } from '../../src/domain/receipts/basketAnalytics'
 import type { Receipt } from '../../src/domain/receipts/types'
 
 const receipts: Receipt[] = [
@@ -127,6 +127,7 @@ describe('enriched receipt analytics', () => {
       { unit: 'item', averagePriceCents: 200 },
       { unit: 'kg', averagePriceCents: 600 },
     ])
+    expect(productTotalQuantity(products[0])).toBe(2.5)
   })
 
   it('summarises signed adjustments, loyalty, and the latest balance', () => {

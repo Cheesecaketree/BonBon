@@ -80,6 +80,19 @@ export function productAggregates(receipts: Receipt[]): ProductAggregate[] {
   return [...products.values()].sort((a, b) => b.spendCents - a.spendCents || b.occurrences - a.occurrences || a.name.localeCompare(b.name))
 }
 
+export function productTotalQuantity(product: ProductAggregate): number {
+  let total = 0
+  for (const [unit, val] of Object.entries(product.quantities) as [ReceiptQuantityUnit, number | undefined][]) {
+    if (!val) continue
+    if (unit === 'g' || unit === 'ml') {
+      total += val / 1000
+    } else {
+      total += val
+    }
+  }
+  return total
+}
+
 export interface ProductAveragePrice {
   unit: ReceiptQuantityUnit
   averagePriceCents: number

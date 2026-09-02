@@ -224,7 +224,7 @@ button.calendar-cell.active { cursor: pointer; }
 
 .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
 .chart-card { min-width: 0; overflow: hidden; padding: 30px 28px 20px; }
-.chart-card.wide { grid-column: 1 / -1; }
+.chart-grid > .wide, .chart-card.wide { grid-column: 1 / -1; }
 .chart-card h3 { font-size: 25px; }
 .chart-card-heading,.rhythm-card>header { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
 .metric-toggle { display: flex; flex: 0 0 auto; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: #f3eade; }
@@ -292,11 +292,11 @@ button.calendar-cell.active { cursor: pointer; }
 .empty-filtered { padding: 80px 20px; border: 1px dashed var(--line); border-radius: 18px; color: #746767; text-align: center; }
 
 .money-stats { grid-template-columns: repeat(5,minmax(0,1fr)); margin-top: 0; }
-.money-stats button, .legacy-stats button { display: grid; min-width: 0; padding: 22px; align-content: start; border: 0; color: var(--ink); background: var(--cream); text-align: left; cursor: pointer; }
+.money-stats button, .legacy-stats button { display: grid; min-width: 0; overflow: hidden; padding: 20px clamp(12px, 1.6vw, 22px); align-content: start; border: 0; color: var(--ink); background: var(--cream); text-align: left; cursor: pointer; }
 .money-stats button:hover, .legacy-stats button:hover { background: #fffaf1; }
-.money-stats span, .legacy-stats span { display: block; color: #756767; font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.money-stats span, .legacy-stats span { display: block; color: #756767; font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; overflow-wrap: break-word; }
 .money-stats>button>span { min-height: 3.6em; }
-.money-stats strong, .legacy-stats strong { display: block; overflow: visible; margin-top: 8px; font-family: Georgia,serif; font-size: clamp(19px,2vw,29px); font-weight: 400; letter-spacing: -.045em; line-height: 1.08; text-overflow: clip; white-space: nowrap; }
+.money-stats strong, .legacy-stats strong { display: block; overflow: visible; margin-top: 8px; font-family: Georgia,serif; font-size: clamp(18px,1.8vw,29px); font-weight: 400; letter-spacing: -.045em; line-height: 1.08; text-overflow: clip; white-space: nowrap; }
 .money-stats small, .legacy-stats small { display: block; margin-top: 5px; color: #786b6b; font-size: 10px; }
 .coverage-note { margin: 18px 0 0; padding: 13px 16px; border: 1px solid rgba(155,40,72,.2); border-radius: 12px; color: #6d6060; background: rgba(155,40,72,.055); font-size: 12px; line-height: 1.5; }
 .coverage-note.wide { margin-top: 0; }
@@ -471,7 +471,7 @@ button.calendar-cell.active { cursor: pointer; }
   .card-heading { align-items: start; flex-direction: column; }
   .analytics-tabs { display: flex; width: 100%; }.analytics-tabs button { min-width: 0; flex: 1; padding-left: 8px; padding-right: 8px; }
   .insight-strip { grid-template-columns: 1fr; }.insight-strip button { padding: 16px 18px; }
-  .chart-grid { grid-template-columns: 1fr; }.chart-card.wide { grid-column: auto; }.chart-card { padding: 24px 16px 16px; }.chart { min-width: 0; width: 100%; }.chart-card { overflow: hidden; }.chart-card-heading { flex-direction: column; }.rhythm-stats { grid-template-columns: repeat(2,1fr); }.rhythm-card .embedded-chart { margin-left: -16px; margin-right: -16px; }
+  .chart-grid { grid-template-columns: 1fr; }.chart-grid > .wide, .chart-card.wide { grid-column: auto; }.chart-card { padding: 24px 16px 16px; }.chart { min-width: 0; width: 100%; }.chart-card { overflow: hidden; }.chart-card-heading { flex-direction: column; }.rhythm-stats { grid-template-columns: repeat(2,1fr); }.rhythm-card .embedded-chart { margin-left: -16px; margin-right: -16px; }
 }
 
 @media (max-width: 480px) {
@@ -689,6 +689,7 @@ body.dialog-open { overflow: hidden; }
   .analytics-tabs { width: 100%; overflow-x: auto; }
   .analytics-tabs button { min-width: max-content; flex: 1 0 auto; }
   .money-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .money-stats button { padding: 18px 16px; }
   .money-stats button:last-child { grid-column: 1 / -1; }
   .money-stats strong { overflow: visible; font-size: clamp(18px,6vw,22px); text-overflow: clip; white-space: nowrap; }
   .legacy-card, .product-card { margin-top: 16px; padding: 22px 14px; }
@@ -696,7 +697,7 @@ body.dialog-open { overflow: hidden; }
   .product-heading { flex-direction: column; }
   .product-controls { display: grid; grid-template-columns: 1fr; width: 100%; }
   .product-controls input, .product-controls select { width: 100%; min-height: 46px; }
-  .product-table { min-width: 680px; }
+  .product-table { min-width: 540px; }
 
   .calendar-card, .chart-card { margin-top: 16px; border-radius: 16px; }
   .calendar-card { padding: 22px 16px 18px; }

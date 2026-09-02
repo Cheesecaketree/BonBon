@@ -79,6 +79,8 @@ describe('receipt detail drawer', () => {
     expect(wrapper.findAll('.drawer-receipts li')).toHaveLength(1)
     expect(wrapper.get('.drawer-context-value strong').text()).toBe('5,50 €')
     expect(wrapper.get('.drawer-receipt-columns').text()).toContain('Ausgaben für dieses Produkt')
+    expect(wrapper.get('.quantity-facts').text()).toContain('Käufe')
+    expect(wrapper.get('.quantity-facts').text()).toContain('2')
     expect(wrapper.get('.quantity-facts').text()).toContain('Durchschnittspreis')
     expect(wrapper.get('.quantity-facts').text()).toContain('1,83 € / Stk.')
   })
