@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { Receipt } from '../../domain/receipts/types'
 
-const receiptSchema = z.object({
+const baseReceiptShape = {
   id: z.string().min(1),
   source: z.literal('rewe'),
   filename: z.string().min(1),
@@ -10,23 +10,65 @@ const receiptSchema = z.object({
   registerId: z.string().regex(/^\d+$/),
   receiptNumber: z.string().regex(/^\d+$/),
   totalCents: z.number().int(),
+}
+
+const receiptItemSchema = z.object({
+  name: z.string().min(1),
+  kind: z.enum(['product', 'deposit', 'depositReturn', 'discount']),
+  quantity: z.number().positive(),
+  quantityUnit: z.enum(['item', 'kg', 'g', 'l', 'ml']),
+  lineTotalCents: z.number().int(),
+  unitPriceCents: z.number().int().optional(),
+  vatClass: z.string().min(1).optional(),
 })
 
-const exportSchema = z.object({
+const vatBreakdownSchema = z.object({
+  vatClass: z.string().min(1),
+  ratePercent: z.number().nonnegative(),
+  netCents: z.number().int(),
+  taxCents: z.number().int(),
+  grossCents: z.number().int(),
+})
+
+const enrichedReceiptSchema = z.object({
+  ...baseReceiptShape,
+  items: z.array(receiptItemSchema).optional(),
+  vatBreakdown: z.array(vatBreakdownSchema).optional(),
+  loyalty: z.object({
+    earnedCents: z.number().int().nonnegative().optional(),
+    spentCents: z.number().int().nonnegative().optional(),
+    balanceCents: z.number().int().nonnegative().optional(),
+  }).optional(),
+  payback: z.object({
+    pointsBefore: z.number().int().nonnegative().optional(),
+    pointsEarned: z.number().int().nonnegative().optional(),
+    balanceEquivalentCents: z.number().int().nonnegative().optional(),
+  }).optional(),
+})
+
+const legacyReceiptSchema = z.object(baseReceiptShape)
+
+const exportV1Schema = z.object({
   schemaVersion: z.literal(1),
   exportedAt: z.string(),
-  receipts: z.array(receiptSchema),
+  receipts: z.array(legacyReceiptSchema),
 })
 
-export interface BonBonExportV1 {
-  schemaVersion: 1
+const exportV2Schema = z.object({
+  schemaVersion: z.literal(2),
+  exportedAt: z.string(),
+  receipts: z.array(enrichedReceiptSchema),
+})
+
+export interface BonBonExportV2 {
+  schemaVersion: 2
   exportedAt: string
   receipts: Receipt[]
 }
 
 export function serializeReceipts(receipts: Receipt[]) {
-  const payload: BonBonExportV1 = {
-    schemaVersion: 1,
+  const payload: BonBonExportV2 = {
+    schemaVersion: 2,
     exportedAt: new Date().toISOString(),
     receipts,
   }
@@ -34,7 +76,9 @@ export function serializeReceipts(receipts: Receipt[]) {
 }
 
 export function parseReceiptExport(value: string): Receipt[] {
-  return exportSchema.parse(JSON.parse(value)).receipts
+  const parsed = JSON.parse(value)
+  if (parsed?.schemaVersion === 1) return exportV1Schema.parse(parsed).receipts
+  return exportV2Schema.parse(parsed).receipts
 }
 
 export function downloadReceiptExport(receipts: Receipt[]) {

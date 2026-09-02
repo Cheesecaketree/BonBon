@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, r
 import { useI18n } from 'vue-i18n'
 import type { ImportStatus, Receipt } from './domain/receipts/types'
 import { parseReweReceipt, receiptId } from './domain/receipts/parser'
+import { mergeReceiptEnrichment } from './domain/receipts/enrichment'
 import { isKnownMarket } from './domain/receipts/markets'
 import { canonicalizeMarketId } from './domain/receipts/marketSchema'
 import { clearLocalMarketMatches } from './domain/receipts/marketContributions'
@@ -118,15 +119,19 @@ async function processFiles(files: File[]) {
   processingTotal.value = files.length
   report.value = []
   notice.value = ''
-  const knownIds = new Set(receipts.value.map((receipt) => receipt.id))
-  const imported: Receipt[] = []
+  type FileOutcome =
+    | { status: 'parsed'; receipt: Receipt }
+    | { status: 'incomplete'; missing: string[] }
+    | { status: 'failed'; message: string }
+  const outcomes = new Array<FileOutcome>(files.length)
   let index = 0
 
   async function worker() {
     while (index < files.length) {
-      const file = files[index++]
+      const fileIndex = index++
+      const file = files[fileIndex]
       if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
-        report.value.push({ filename: file.name, status: 'failed', message: t('notPdf') })
+        outcomes[fileIndex] = { status: 'failed', message: t('notPdf') }
         processed.value += 1
         continue
       }
@@ -134,17 +139,13 @@ async function processFiles(files: File[]) {
         const text = await extractPdfText(file)
         const result = parseReweReceipt(text, file.name)
         if (!result.ok) {
-          report.value.push({ filename: file.name, status: 'incomplete', message: t('missing', { fields: result.missing.join(', ') }) })
-        } else if (knownIds.has(result.receipt.id)) {
-          report.value.push({ filename: file.name, status: 'duplicate' })
+          outcomes[fileIndex] = { status: 'incomplete', missing: result.missing }
         } else {
-          knownIds.add(result.receipt.id)
-          imported.push(result.receipt)
-          report.value.push({ filename: file.name, status: 'imported' })
+          outcomes[fileIndex] = { status: 'parsed', receipt: result.receipt }
         }
       } catch (error) {
         const message = error instanceof Error && error.message === 'no-text' ? t('noText') : (error instanceof Error ? error.message : String(error))
-        report.value.push({ filename: file.name, status: 'failed', message })
+        outcomes[fileIndex] = { status: 'failed', message }
       } finally {
         processed.value += 1
       }
@@ -152,8 +153,27 @@ async function processFiles(files: File[]) {
   }
 
   await Promise.all(Array.from({ length: Math.min(4, files.length) }, worker))
-  receipts.value = [...receipts.value, ...imported].sort((a, b) => a.localTimestamp.localeCompare(b.localTimestamp))
-  if (imported.length) updateUnknownMarketPrompt(receipts.value)
+  const nextReceipts = [...receipts.value]
+  const receiptIndexes = new Map(nextReceipts.map((receipt, receiptIndex) => [receipt.id, receiptIndex]))
+  let importedCount = 0
+  report.value = outcomes.map((outcome, fileIndex) => {
+    const filename = files[fileIndex].name
+    if (outcome.status === 'failed') return { filename, status: 'failed', message: outcome.message }
+    if (outcome.status === 'incomplete') {
+      return { filename, status: 'incomplete', message: t('missing', { fields: outcome.missing.join(', ') }) }
+    }
+    const existingIndex = receiptIndexes.get(outcome.receipt.id)
+    if (existingIndex !== undefined) {
+      nextReceipts[existingIndex] = mergeReceiptEnrichment(nextReceipts[existingIndex], outcome.receipt)
+      return { filename, status: 'duplicate' }
+    }
+    receiptIndexes.set(outcome.receipt.id, nextReceipts.length)
+    nextReceipts.push(outcome.receipt)
+    importedCount += 1
+    return { filename, status: 'imported' }
+  })
+  receipts.value = nextReceipts.sort((a, b) => a.localTimestamp.localeCompare(b.localTimestamp))
+  if (importedCount) updateUnknownMarketPrompt(receipts.value)
   processing.value = false
 }
 
@@ -191,11 +211,32 @@ async function importJson(event: Event) {
   if (!file) return
   try {
     const incoming = parseReceiptExport(await file.text()).map(normalizeReceiptMarketId)
-    const known = new Set(receipts.value.map((receipt) => receipt.id))
-    const additions = incoming.filter((receipt) => !known.has(receipt.id) && known.add(receipt.id))
-    receipts.value = [...receipts.value, ...additions].sort((a, b) => a.localTimestamp.localeCompare(b.localTimestamp))
-    if (additions.length) updateUnknownMarketPrompt(receipts.value)
-    notice.value = t('jsonImported', { count: additions.length })
+    const nextReceipts = [...receipts.value]
+    const receiptIndexes = new Map(nextReceipts.map((receipt, index) => [receipt.id, index]))
+    let additionsCount = 0
+    let updatedCount = 0
+    for (const receipt of incoming) {
+      const existingIndex = receiptIndexes.get(receipt.id)
+      if (existingIndex !== undefined) {
+        const existing = nextReceipts[existingIndex]
+        const merged = mergeReceiptEnrichment(existing, receipt)
+        const changed = merged.items !== existing.items
+          || merged.vatBreakdown !== existing.vatBreakdown
+          || merged.loyalty !== existing.loyalty
+          || merged.payback !== existing.payback
+        if (changed) {
+          nextReceipts[existingIndex] = merged
+          updatedCount += 1
+        }
+      } else {
+        receiptIndexes.set(receipt.id, nextReceipts.length)
+        nextReceipts.push(receipt)
+        additionsCount += 1
+      }
+    }
+    receipts.value = nextReceipts.sort((a, b) => a.localTimestamp.localeCompare(b.localTimestamp))
+    if (additionsCount) updateUnknownMarketPrompt(receipts.value)
+    notice.value = t('jsonImported', { count: additionsCount + updatedCount })
   } catch {
     notice.value = t('jsonInvalid')
   }

@@ -4,6 +4,7 @@ coverage/
 playwright-report/
 test-results/
 .market-contributions/
+.receipt-corpus/
 .DS_Store
 *.local
 *.tsbuildinfo

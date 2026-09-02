@@ -1,7 +1,7 @@
 {
   "name": "bonbon",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "license": "0BSD",
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "build": "npm run validate:markets && vue-tsc -b && vite build",
     "validate:markets": "vite-node scripts/validate_market_data.mjs dataset",
     "validate:contribution": "vite-node scripts/validate_market_data.mjs contribution",
+    "audit:receipts": "vite-node scripts/audit_receipts.mts",
     "import:markets": "vite-node scripts/import_market_data.mjs",
     "preview": "vite preview",
     "test": "vitest run",

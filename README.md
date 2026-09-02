@@ -16,6 +16,8 @@
   - **Timestamps**: Uses TSE (Technical Security System / _Technische Sicherheitseinrichtung_) timestamps with second precision, falling back to printed receipt times.
   - **Store Identification**: Captures Market ID and Register (_Kasse_) number.
   - **Transaction Details**: Extracts receipt number (_Bon-Nr._) and total transaction amount (in cents to avoid floating-point errors).
+  - **Checkout Rows**: Extracts product names, quantities, quantity units, unit prices, line totals, VAT classes, discounts, deposit charges, and deposit returns.
+  - **Tax and Loyalty Data**: Captures the printed VAT breakdown and REWE Bonus credit earned, spent, and remaining. Legacy PAYBACK points remain separate from euro-denominated REWE Bonus credit.
 - **Smart Deduplication & Import Reporting**: Prevents duplicate entries using composite unique IDs (`rewe:<timestamp>:<marketId>:<receiptNumber>`) and displays real-time parsing status and diagnostic details.
 
 ### 📊 Rich Analytics & Visualizations
@@ -53,7 +55,7 @@
 - **Prominent Quick Controls**: Instant **"+ Add receipts"** (_Weitere eBons_) modal and **"Clear data"** (_Daten löschen_) actions available right in the top navigation bar and dashboard filter bar.
 - **Ephemeral by Default**: Analyzes receipts in-memory; nothing is saved unless explicitly opted in.
 - **Optional Local Persistence**: Toggle on-device IndexedDB storage with one click to retain parsed receipt data and original PDF documents across browser sessions.
-- **Portable JSON Backup**: Export and import validated JSON backups (`v1` schema with Zod validation).
+- **Portable JSON Backup**: Export and import validated JSON backups (`v2` schema with Zod validation and backward-compatible `v1` imports).
 - **One-Click Clear**: Safely purge all in-memory and persisted receipts and PDF files on demand.
 
 ### 🌍 Bilingual Interface
@@ -128,6 +130,39 @@ npm run test:e2e
 
 - **Synthetic Fixtures**: Automated CI tests use synthetic, non-private PDF receipts located in `tests/fixtures/`. These can be regenerated via Python (`scripts/generate_test_fixtures.py`).
 
+### Auditing a Local Receipt Corpus
+
+Use the receipt audit to evaluate parser coverage against a directory of real REWE eBon PDFs:
+
+```sh
+npm run audit:receipts -- "/absolute/path/to/receipt-folder"
+```
+
+If the directory argument is omitted, the command defaults to `.receipt-corpus/` in the repository root. Only PDF files directly inside the selected directory are inspected; subdirectories are not traversed.
+
+The audit uses the same PDF.js text extraction and receipt parser as the application. Processing is entirely local: it does not upload PDFs, retain extracted receipt text, or print filenames and product names. Its JSON output contains aggregate counts and amounts only. Monetary fields are integer euro cents, so `1234` means €12.34 and deposit returns or discounts are normally negative.
+
+| Output field | Meaning |
+| --- | --- |
+| `files` | Number of PDF files found in the directory. |
+| `parsed` / `failed` | Receipts that did or did not contain all required transaction identity and total fields. |
+| `itemCount` | Total checkout rows extracted across parsed receipts. |
+| `weightedItemCount` | Rows with a measured unit such as kilograms instead of the default item count. |
+| `depositCharges` | Sum of deposit charges in cents. |
+| `depositReturns` | Sum of returned-container credits in cents; normally negative. |
+| `discounts` | Sum of negative, non-deposit checkout rows in cents. |
+| `vatRows` | Number of VAT summary rows extracted. |
+| `bonusReceipts` | Receipts containing at least one REWE Bonus field. |
+| `bonusEarnedCents` / `bonusSpentCents` | Total explicitly printed REWE Bonus credit earned and spent. Missing values are not inferred. |
+| `bonusBalanceObservations` | Receipts containing a printed post-purchase Bonus balance. Balances are observations, not amounts to sum. |
+| `paybackReceipts` | Receipts containing legacy PAYBACK data, kept separate from REWE Bonus. |
+| `receiptsWithoutItems` | Parsed receipts for which no checkout rows were recognized. |
+| `itemTotalMismatches` | Receipts where extracted line totals do not add up to the printed `SUMME`. |
+| `vatGrossMismatches` | Receipts where extracted VAT gross amounts do not add up to the printed `SUMME`. |
+| `largestItemTotalDeltaCents` | Largest absolute difference between an extracted line-item sum and printed receipt total. |
+
+For a clean corpus, investigate any non-zero `failed`, `receiptsWithoutItems`, `itemTotalMismatches`, or `vatGrossMismatches` value. Reconciliation proves that the extracted monetary rows are complete for the tested layouts; it does not prove that abbreviated product names are semantically complete or that quantities absent from the receipt can be inferred. The command is diagnostic and reports discrepancies in JSON rather than failing solely because a mismatch was found.
+
 ---
 
 ## 📂 Project Structure
@@ -135,6 +170,7 @@ npm run test:e2e
 ```text
 BonBon/
 ├── scripts/
+│   ├── audit_receipts.mts         # Local aggregate parser audit for receipt corpora
 │   └── generate_test_fixtures.py  # Python script to build synthetic PDF fixtures
 ├── src/
 │   ├── domain/receipts/   # Core domain models, parser logic, and analytics calculations

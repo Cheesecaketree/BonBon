@@ -5,6 +5,7 @@ import {
   hourlyAggregates, marketAggregates, regularityStats, spendingPace,
   summaryStats, weekdayHourMatrix, yearlySeries,
 } from '../../src/domain/receipts/analytics'
+import { enrichmentCoverage, financialSummary, monthlyFinancials, paybackSummary, productAggregates, productAveragePrices, vatAggregates } from '../../src/domain/receipts/basketAnalytics'
 import type { Receipt } from '../../src/domain/receipts/types'
 
 const receipts: Receipt[] = [
@@ -84,5 +85,79 @@ describe('receipt analytics', () => {
     const tied = [{ ...receipts[0], id: 'b', totalCents: 100 }, { ...receipts[0], id: 'a', localTimestamp: '2026-08-30T10:00:00', totalCents: 100 }, { ...receipts[0], id: 'zero', totalCents: 0 }]
     expect(basketExtremes(tied).smallest?.id).toBe('a')
     expect(basketExtremes(tied).largest?.id).toBe('b')
+  })
+})
+
+describe('enriched receipt analytics', () => {
+  const enriched: Receipt[] = [
+    {
+      ...receipts[0],
+      id: 'enriched-a',
+      localTimestamp: '2025-01-10T10:00:00',
+      items: [
+        { name: 'PASTA', kind: 'product', quantity: 2, quantityUnit: 'item', lineTotalCents: 400, unitPriceCents: 200, vatClass: 'B' },
+        { name: 'PFAND', kind: 'deposit', quantity: 2, quantityUnit: 'item', lineTotalCents: 50, unitPriceCents: 25, vatClass: 'A' },
+        { name: 'RABATT', kind: 'discount', quantity: 1, quantityUnit: 'item', lineTotalCents: -30, unitPriceCents: -30, vatClass: 'B' },
+      ],
+      vatBreakdown: [{ vatClass: 'B', ratePercent: 7, netCents: 1000, taxCents: 70, grossCents: 1070 }],
+      loyalty: { earnedCents: 20, spentCents: 100, balanceCents: 300 },
+      payback: { pointsBefore: 90, pointsEarned: 5, balanceEquivalentCents: 90 },
+    },
+    {
+      ...receipts[1],
+      id: 'enriched-b',
+      localTimestamp: '2025-02-10T10:00:00',
+      items: [
+        { name: 'PASTA', kind: 'product', quantity: 0.5, quantityUnit: 'kg', lineTotalCents: 300, unitPriceCents: 600, vatClass: 'B' },
+        { name: 'LEERGUT', kind: 'depositReturn', quantity: 1, quantityUnit: 'item', lineTotalCents: -25, unitPriceCents: 25, vatClass: 'A' },
+      ],
+      vatBreakdown: [{ vatClass: 'A', ratePercent: 19, netCents: 1000, taxCents: 190, grossCents: 1190 }],
+      loyalty: { earnedCents: 10, balanceCents: 310 },
+      payback: { pointsBefore: 95, pointsEarned: 7, balanceEquivalentCents: 95 },
+    },
+    { ...receipts[2], id: 'legacy', items: undefined },
+  ]
+
+  it('groups exact product names while preserving separate quantity units', () => {
+    const products = productAggregates(enriched)
+    expect(products[0]).toMatchObject({
+      name: 'PASTA', spendCents: 700, occurrences: 2, quantities: { item: 2, kg: 0.5 },
+    })
+    expect(productAveragePrices(products[0])).toEqual([
+      { unit: 'item', averagePriceCents: 200 },
+      { unit: 'kg', averagePriceCents: 600 },
+    ])
+  })
+
+  it('summarises signed adjustments, loyalty, and the latest balance', () => {
+    expect(financialSummary(enriched)).toEqual({
+      bonusEarnedCents: 30,
+      bonusSpentCents: 100,
+      latestBonusBalance: { cents: 310, timestamp: '2025-02-10T10:00:00' },
+      depositChargedCents: 50,
+      depositReturnedCents: 25,
+      depositNetCents: 25,
+      discountCents: 30,
+      vatCents: 260,
+    })
+    expect(monthlyFinancials(enriched)[0]).toMatchObject({ bonusEarnedCents: 20, bonusSpentCents: 100, depositChargedCents: 50, discountCents: 30 })
+    expect(monthlyFinancials(enriched)[1]).toMatchObject({ bonusEarnedCents: 10, depositReturnedCents: 25 })
+  })
+
+  it('aggregates VAT by rate and keeps PAYBACK separate', () => {
+    expect(vatAggregates(enriched).map(({ ratePercent, taxCents, grossCents }) => ({ ratePercent, taxCents, grossCents }))).toEqual([
+      { ratePercent: 7, taxCents: 70, grossCents: 1070 },
+      { ratePercent: 19, taxCents: 190, grossCents: 1190 },
+    ])
+    expect(paybackSummary(enriched)).toEqual({
+      pointsEarned: 12,
+      latestPointsBefore: { points: 95, timestamp: '2025-02-10T10:00:00' },
+      latestEquivalent: { cents: 95, timestamp: '2025-02-10T10:00:00' },
+      receiptCount: 2,
+    })
+  })
+
+  it('reports optional enrichment coverage without treating missing rows as zero data', () => {
+    expect(enrichmentCoverage(enriched)).toEqual({ total: 3, items: 2, vat: 2, bonus: 2, payback: 2 })
   })
 })

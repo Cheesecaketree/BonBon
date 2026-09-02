@@ -9,11 +9,25 @@ test('imports a synthetic REWE PDF and opens the dashboard', async ({ page }) =>
   await expect(page.getByText('12,34 €').first()).toBeVisible()
 })
 
+test('explores parsed products and drills into an itemized receipt', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('input[type="file"][accept*="pdf"]').first().setInputFiles(path.resolve('tests/fixtures/rewe-one-page.pdf'))
+  await page.getByRole('tab', { name: 'Produkte' }).click()
+  await expect(page.getByRole('heading', { name: 'Deine Produkte' })).toBeVisible()
+  await page.locator('.product-table tbody button').first().click()
+  const drawer = page.getByRole('dialog')
+  await expect(drawer).toBeVisible()
+  await expect(drawer.getByText('Ausgaben für dieses Produkt')).toBeVisible()
+  await drawer.locator('.drawer-receipts button').first().click()
+  await expect(drawer.getByText('Einkaufswert')).toBeVisible()
+  await expect(drawer.locator('.receipt-items li')).toHaveCount(1)
+})
+
 test('keeps English dates in day-month-year order', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'EN', exact: true }).click()
   await page.locator('input[type="file"][accept*="pdf"]').first().setInputFiles(path.resolve('tests/fixtures/rewe-one-page.pdf'))
-  await page.getByRole('button', { name: /31 Aug 2026/ }).click()
+  await page.locator('.calendar-cell.active').click()
   await expect(page.getByRole('heading', { name: '31 Aug 2026' })).toBeVisible()
   await expect(page.getByText('Aug 31, 2026')).toHaveCount(0)
 })
@@ -30,6 +44,7 @@ for (const viewport of [
     await page.goto('/')
     await page.locator('input[type="file"][accept*="pdf"]').first().setInputFiles(path.resolve('tests/fixtures/rewe-one-page.pdf'))
     await expect(page.getByRole('heading', { name: 'Einkaufsjahr im Überblick' })).toBeVisible()
+    await page.getByRole('tab', { name: 'Geld' }).click()
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow).toBeLessThanOrEqual(1)
@@ -45,6 +60,13 @@ for (const viewport of [
       expect(box.right).toBeLessThanOrEqual(viewportWidth + 1)
       expect(box.width).toBeGreaterThan(250)
     }
+
+    const moneyValueLayout = await page.locator('.money-stats strong').evaluateAll((values) => values.map((value) => ({
+      overflow: value.scrollWidth - value.clientWidth,
+      whiteSpace: getComputedStyle(value).whiteSpace,
+      textOverflow: getComputedStyle(value).textOverflow,
+    })))
+    expect(moneyValueLayout.every((value) => value.overflow <= 1 && value.whiteSpace === 'nowrap' && value.textOverflow === 'clip')).toBe(true)
 
     if (viewport.width <= 720) {
       await expect(page.locator('.topbar-data-actions')).toBeHidden()
