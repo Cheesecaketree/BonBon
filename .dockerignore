@@ -1,0 +1,9 @@
+.git
+.env*
+api-dist
+data
+dist
+node_modules
+playwright-report
+test-results
+.market-contributions

@@ -47,6 +47,11 @@ describe('REWE parser', () => {
     expect(extractMarketReference(base)).toBeUndefined()
   })
 
+  it('normalizes spaced REWE text and skips phone lines in the extracted header', () => {
+    const text = `R E W E Markt GmbH\nVenloer Str. 310\nTel.: 0221 / 123456\n50823 Köln\nEUR\n${base}`
+    expect(extractMarketReference(text)).toBe('REWE Markt GmbH, Venloer Str. 310, 50823 Köln')
+  })
+
   it('reports every missing required field', () => {
     expect(parseReweReceipt('nothing useful', 'bad.pdf')).toEqual({ ok: false, missing: ['timestamp', 'market', 'register', 'receiptNumber', 'total'] })
   })

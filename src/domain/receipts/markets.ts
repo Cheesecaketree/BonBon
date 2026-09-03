@@ -7,11 +7,27 @@ import {
   type MarketDataset,
 } from './marketSchema'
 import type { LocalMarketMatches } from './marketContributions'
+import { normalizeMarketRetailerName, sanitizeMarketReference } from './marketReference'
 
 export type { CanonicalMarket, MarketData, MarketDataset } from './marketSchema'
+export { sanitizeMarketReference } from './marketReference'
+
+const marketAddressFields = ['street', 'houseNumber', 'zip', 'city', 'country'] as const
+
+function comparableMarketPart(value: string | null | undefined): string {
+  return (value || '').normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('de-DE')
+}
+
+function comparableAddressPart(field: typeof marketAddressFields[number], value: string | null | undefined): string {
+  const normalized = comparableMarketPart(value)
+  if (field === 'street') return normalized.replace(/(?:straße|strasse|str\.?)$/u, 'strasse')
+  if (field === 'houseNumber') return normalized.replace(/\s*([-–—/])\s*/g, '$1').replace(/(\d+)\s+([a-zäöüß])\b/gi, '$1$2')
+  if (field === 'city') return normalized.replace(/\.+$/, '')
+  return normalized
+}
 
 export function parseMarketReference(raw: string): MarketData {
-  const trimmed = raw.trim()
+  const trimmed = sanitizeMarketReference(raw)
   if (!trimmed) return { name: '', street: null, houseNumber: null, zip: null, city: null, country: 'DE', lat: null, long: null }
 
   const parts = trimmed.split(/[\n,]+/).map((part) => part.trim()).filter(Boolean)
@@ -21,16 +37,19 @@ export function parseMarketReference(raw: string): MarketData {
   let city: string | null = null
 
   for (let index = parts.length - 1; index >= 0; index -= 1) {
-    const match = parts[index].match(/\b(?:D-)?(\d{5})\s+([A-Za-zÄÖÜäöüß\s\-]+)/)
+    const match = parts[index].match(/^(.*?)(?:D-)?(\d{5})\s+([A-Za-zÄÖÜäöüß\s\-./]+)$/)
     if (!match) continue
-    zip = match[1]
-    city = match[2].trim()
-    parts.splice(index, 1)
+    const addressPrefix = match[1].replace(/\s*[-–—]\s*$/, '').trim()
+    zip = match[2]
+    city = match[3].trim()
+    if (addressPrefix) parts[index] = addressPrefix
+    else parts.splice(index, 1)
     break
   }
 
-  for (let index = parts.length - 1; index >= 1; index -= 1) {
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
     const match = parts[index].match(/^([A-Za-zÄÖÜäöüß\s.\-]+?)\s+(\d+[\s\-\w/]*)$/)
+      || parts[index].match(/^([A-Za-zÄÖÜäöüß\s.\-]+?(?:str(?:aße|asse|\.)?|weg|allee|platz|chaussee|damm|ring|ufer|gasse|stieg|steig|pfad|promenade|wall|kamp|twiete|graben))(\d+[A-Za-z]?(?:\s*[-/]\s*\d+[A-Za-z]?)?)$/i)
     if (!match) continue
     street = match[1].trim()
     houseNumber = match[2].trim()
@@ -39,7 +58,7 @@ export function parseMarketReference(raw: string): MarketData {
   }
 
   return {
-    name: parts.join(', ') || trimmed,
+    name: normalizeMarketRetailerName(parts.join(', ')),
     street,
     houseNumber,
     zip,
@@ -48,6 +67,20 @@ export function parseMarketReference(raw: string): MarketData {
     lat: null,
     long: null,
   }
+}
+
+export function marketReferenceMatchesAddress(raw: string, market: MarketData): boolean {
+  const parsed = parseMarketReference(raw)
+  return marketAddressFields.every((field) => (
+    Boolean(parsed[field]) && comparableAddressPart(field, parsed[field]) === comparableAddressPart(field, market[field])
+  ))
+}
+
+export function marketReferenceIsRedundant(raw: string, market: MarketData): boolean {
+  const parsed = parseMarketReference(raw)
+  return marketReferenceMatchesAddress(raw, market) && (
+    !parsed.name || comparableMarketPart(parsed.name) === comparableMarketPart(market.name)
+  )
 }
 
 export function formatMarketAddress(market: MarketData): string {

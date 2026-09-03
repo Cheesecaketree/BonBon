@@ -8,7 +8,10 @@ import {
   getMarketShortName,
   getMarketSource,
   isKnownMarket,
+  marketReferenceMatchesAddress,
+  marketReferenceIsRedundant,
   parseMarketReference,
+  sanitizeMarketReference,
 } from '../../src/domain/receipts/markets'
 import { canonicalizeMarketId, marketContributionFileSchema, marketDatasetSchema, type MarketData } from '../../src/domain/receipts/marketSchema'
 
@@ -61,6 +64,82 @@ describe('market resolution and validation', () => {
       name: 'REWE Markt GmbH', street: 'Venloer Str.', houseNumber: '310', zip: '50823', city: 'Köln',
       country: 'DE', lat: null, long: null,
     })
+  })
+
+  it('normalizes a spaced retailer name without creating a different candidate', () => {
+    expect(parseMarketReference('R E W E Markt GmbH\nVenloer Str. 310\n50823 Köln')).toMatchObject({
+      name: 'REWE Markt GmbH', street: 'Venloer Str.', houseNumber: '310', zip: '50823', city: 'Köln',
+    })
+  })
+
+  it('recognizes an address when the market name is missing', () => {
+    expect(parseMarketReference('Venloer Str. 310\n50823 Köln')).toMatchObject({
+      name: '', street: 'Venloer Str.', houseNumber: '310', zip: '50823', city: 'Köln',
+    })
+    expect(parseMarketReference('Warendorfer Str.189, 48145 Münster')).toMatchObject({
+      name: '', street: 'Warendorfer Str.', houseNumber: '189', zip: '48145', city: 'Münster',
+    })
+  })
+
+  it('extracts a complete address from a combined street, ZIP, and city line', () => {
+    expect(parseMarketReference('REWE Michael Reinartz OHG, Lütticher Str. 17a - 52064 Aachen')).toMatchObject({
+      name: 'REWE Michael Reinartz OHG', street: 'Lütticher Str.', houseNumber: '17a', zip: '52064', city: 'Aachen',
+    })
+    expect(parseMarketReference('REWE Michael Reinartz OHG, Lütticher Str. 17a - 52064 Aachen, Barcode bitte am Ausgang scannen')).toMatchObject({
+      name: 'REWE Michael Reinartz OHG', street: 'Lütticher Str.', houseNumber: '17a', zip: '52064', city: 'Aachen',
+    })
+  })
+
+  it('classifies address parts independently when ZIP and street are reversed', () => {
+    expect(parseMarketReference('J. Stenten GmbH & Co. KG, 52066 Aachen, Krugenofen 62 -70, Steuernr.: 201/5934/0231')).toMatchObject({
+      name: 'J. Stenten GmbH & Co. KG', street: 'Krugenofen', houseNumber: '62 -70', zip: '52066', city: 'Aachen',
+    })
+  })
+
+  it('extracts complete addresses for cities with dots or slashes', () => {
+    expect(parseMarketReference('REWE, Zeil 100, 60311 Frankfurt/Main')).toMatchObject({
+      name: 'REWE', street: 'Zeil', houseNumber: '100', zip: '60311', city: 'Frankfurt/Main',
+    })
+    expect(parseMarketReference('REWE, Zeil 100, 60311 Frankfurt a.M.')).toMatchObject({
+      name: 'REWE', street: 'Zeil', houseNumber: '100', zip: '60311', city: 'Frankfurt a.M.',
+    })
+    expect(parseMarketReference('REWE, Bonner Str. 1, 53757 St. Augustin')).toMatchObject({
+      name: 'REWE', street: 'Bonner Str.', houseNumber: '1', zip: '53757', city: 'St. Augustin',
+    })
+  })
+
+  it('identifies observations that only confirm an existing address', () => {
+    expect(marketReferenceMatchesAddress('REWE Beispiel, Hauptstr. 2, 12345 Berlin', localMarket)).toBe(true)
+    expect(marketReferenceMatchesAddress('Hauptstr. 2, 12345 Berlin', localMarket)).toBe(true)
+    expect(marketReferenceMatchesAddress('Hauptstr 2, 12345 Berlin', localMarket)).toBe(true)
+    expect(marketReferenceMatchesAddress('REWE Beispiel, Hauptstr. 3, 12345 Berlin', localMarket)).toBe(false)
+    expect(marketReferenceIsRedundant('Hauptstr. 2, 12345 Berlin', localMarket)).toBe(true)
+    expect(marketReferenceIsRedundant('REWE Neuer Inhaber, Hauptstr. 2, 12345 Berlin', localMarket)).toBe(false)
+    expect(marketReferenceIsRedundant(
+      'REWE Beispiel, Weberstraße 62, 12345 Berlin',
+      { ...localMarket, street: 'Weberstr.', houseNumber: '62' },
+    )).toBe(true)
+    expect(marketReferenceIsRedundant(
+      'REWE Beispiel, Weberstr 62, 12345 Berlin',
+      { ...localMarket, street: 'Weberstraße', houseNumber: '62' },
+    )).toBe(true)
+    expect(marketReferenceMatchesAddress(
+      'Lütticher Str. 17 a, 52064 Aachen',
+      { ...localMarket, street: 'Lütticher Str.', houseNumber: '17a', zip: '52064', city: 'Aachen' },
+    )).toBe(true)
+  })
+
+  it('removes labelled and standalone phone numbers from market text while preserving streets starting with Tel', () => {
+    expect(sanitizeMarketReference('REWE\nVenloer Str. 310\nTel.: 0221 / 123456\n50823 Köln'))
+      .toBe('REWE, Venloer Str. 310, 50823 Köln')
+    expect(sanitizeMarketReference('REWE, Venloer Str. 310, +49 (0) 221 123456, 50823 Köln'))
+      .toBe('REWE, Venloer Str. 310, 50823 Köln')
+    expect(sanitizeMarketReference('REWE\nVenloer Str. 310\nTel. 0221 123456\n50823 Köln'))
+      .toBe('REWE, Venloer Str. 310, 50823 Köln')
+    expect(sanitizeMarketReference('REWE\nTel-Aviv-Straße 1\n50676 Köln'))
+      .toBe('REWE, Tel-Aviv-Straße 1, 50676 Köln')
+    expect(sanitizeMarketReference('Phone House, Main Street 1, 12345 Berlin'))
+      .toBe('Phone House, Main Street 1, 12345 Berlin')
   })
 
   it('loads a dataset that passes the shared schema', () => {

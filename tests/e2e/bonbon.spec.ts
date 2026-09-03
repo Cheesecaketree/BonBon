@@ -17,7 +17,7 @@ test('explores parsed products and drills into an itemized receipt', async ({ pa
   await page.locator('.product-table tbody button').first().click()
   const drawer = page.getByRole('dialog')
   await expect(drawer).toBeVisible()
-  await expect(drawer.getByText('Ausgaben für dieses Produkt')).toBeVisible()
+  await expect(drawer.locator('.day-total').getByText('Ausgaben für dieses Produkt')).toBeVisible()
   await drawer.locator('.drawer-receipts button').first().click()
   await expect(drawer.getByText('Einkaufswert')).toBeVisible()
   await expect(drawer.locator('.receipt-items li')).toHaveCount(1)
@@ -30,6 +30,22 @@ test('keeps English dates in day-month-year order', async ({ page }) => {
   await page.locator('.calendar-cell.active').click()
   await expect(page.getByRole('heading', { name: '31 Aug 2026' })).toBeVisible()
   await expect(page.getByText('Aug 31, 2026')).toHaveCount(0)
+})
+
+test('reviews market observations in simple and page-wide advanced modes', async ({ page }) => {
+  await page.goto('/')
+  await page.locator('input[type="file"][accept*="pdf"]').first().setInputFiles(path.resolve('tests/fixtures/rewe-one-page.pdf'))
+  await page.getByRole('button', { name: /Marktdaten verbessern/ }).first().click()
+
+  await expect(page.getByRole('heading', { name: 'Marktbeobachtungen beitragen' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Einfach', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.observation-editor textarea')).toHaveCount(1)
+  await expect(page.locator('.advanced-market-fields')).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Erweitert', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Erweitert', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.advanced-market-fields')).toHaveCount(1)
+  await expect(page.getByText('Die Online-Einreichung ist in diesem Build nicht eingerichtet.')).toBeVisible()
 })
 
 for (const viewport of [

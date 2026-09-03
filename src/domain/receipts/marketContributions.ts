@@ -75,6 +75,8 @@ export function removeLocalMarketMatch(marketId: string): void {
   }
 }
 
+export const deleteLocalMarketMatch = removeLocalMarketMatch
+
 export function clearLocalMarketMatches(): void {
   try {
     localStorage.removeItem(LOCAL_MATCHES_STORAGE_KEY)

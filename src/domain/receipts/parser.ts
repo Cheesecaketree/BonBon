@@ -9,6 +9,7 @@ import type {
   ReweBonus,
 } from './types'
 import { canonicalizeMarketId } from './marketSchema'
+import { sanitizeMarketReference } from './marketReference'
 
 const TSE_TIMESTAMP = /TSE-Start:\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.\d+)?/i
 const PRINTED_TIMESTAMP = /(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}:\d{2})(?=\s+Bon-Nr\.)/i
@@ -191,12 +192,14 @@ export function extractMarketReference(text: string): string | undefined {
   for (const line of lines.slice(0, 12)) {
     if (/^(SUMME|TSE-|Markt:|Bon-Nr|Kasse:|\*+|-+|=+)/i.test(line)) break
     if (/\d+[.,]\d{2}\s+[A-Z]$/i.test(line)) break
-    if (/^(EUR|Tel|Fax|USt|St\.-Nr|Steuernummer|UID|EC-|Girocard)$/i.test(line)) continue
+    if (/^(?:EUR|USt|St\.-Nr|Steuernummer|UID|EC-|Girocard)(?:\b|$)/i.test(line)) continue
+    if (/^(?:Tel(?:(?:efon)(?:nummer)?|-?Nr\.?)?|Fon|Phone|Fax)(?:\s*[.:]{1,2}\s*|\s+)/i.test(line)) continue
+    if (/^[+()\d][\d\s()+./-]+$/.test(line) && (line.match(/\d/g) || []).length >= 6) continue
     referenceLines.push(line)
     if (referenceLines.length === 3) break
   }
 
-  const reference = referenceLines.join(', ')
+  const reference = sanitizeMarketReference(referenceLines.join(', '))
   return reference.length >= 4 ? reference : undefined
 }
 
