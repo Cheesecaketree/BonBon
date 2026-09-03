@@ -4,17 +4,32 @@ services:
       context: .
       dockerfile: Dockerfile.api
     restart: unless-stopped
+    env_file:
+      - path: .env.api
+        required: false
+      - path: .env
+        required: false
     environment:
       HOST: 0.0.0.0
       PORT: 8788
       DATABASE_PATH: /data/market-contributions.sqlite
-      ADMIN_TOKEN: ${ADMIN_TOKEN}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       TRUST_PROXY: 'true'
     ports:
       - 127.0.0.1:8788:8788
     volumes:
       - market-contribution-data:/data
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    env_file:
+      - path: .env.api
+        required: false
+      - path: .env
+        required: false
+    depends_on:
+      - market-contributions
 
 volumes:
   market-contribution-data:

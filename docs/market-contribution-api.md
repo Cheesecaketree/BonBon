@@ -6,14 +6,14 @@ BonBon resolves markets exclusively from the dataset bundled into each static bu
 
 ### Option A: Docker Compose (Production / Self-hosting)
 
-Copy `.env.api.example` to `.env.api`, replace the admin token with a long random value (at least 32 characters), and set every allowed BonBon origin exactly. Then run:
+Copy `.env.api.example` to `.env.api`, replace the admin token with a long random value (at least 32 characters), set every allowed BonBon origin exactly, and add your Cloudflare Tunnel token (`TUNNEL_TOKEN`). Then run:
 
 ```sh
 docker compose --env-file .env.api -f compose.api.yml up -d --build
 curl http://127.0.0.1:8788/healthz
 ```
 
-The service listens only on host loopback. Point a Cloudflare Tunnel ingress at `http://localhost:8788`, or remove the host port and attach `cloudflared` to the Compose network. Do not expose the container port directly to the internet. Configure the static build with:
+The Compose stack runs both the `market-contributions` API and a `cloudflared` tunnel container. Inside the Docker network, `cloudflared` routes requests directly to `http://market-contributions:8788` (configure this as the service URL in the Cloudflare Zero Trust dashboard). The API also binds port 8788 to the host loopback for local health checks. Configure the static build with:
 
 ```sh
 VITE_MARKET_CONTRIBUTION_API_URL=https://market-observations.example npm run build
@@ -64,6 +64,7 @@ Review files are written to the ignored `.market-contributions/` directory. Run 
 | --- | --- | --- |
 | `ADMIN_TOKEN` | *(required)* | Secret bearer token for admin routes (minimum 32 characters). |
 | `ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated list of permitted web application origins for CORS. |
+| `TUNNEL_TOKEN` | *(required for cloudflared)* | Cloudflare Tunnel token from the Zero Trust dashboard. |
 | `HOST` | `127.0.0.1` | Network interface to bind to (`0.0.0.0` in Docker). |
 | `PORT` | `8788` | Port number to listen on. |
 | `DATABASE_PATH` | `./data/market-contributions.sqlite` | Filepath to the SQLite database file. |
