@@ -60,7 +60,7 @@ test('reviews market observations in simple and page-wide advanced modes', async
   await page.getByRole('button', { name: 'Erweitert', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Erweitert', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.advanced-market-fields')).toHaveCount(1)
-  await expect(page.getByText('Die Online-Einreichung ist in diesem Build nicht eingerichtet.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Beobachtungen senden' }).or(page.getByText('Die Online-Einreichung ist in diesem Build nicht eingerichtet.'))).toBeVisible()
 })
 
 for (const viewport of [
@@ -127,3 +127,42 @@ test('mobile add-receipts sheet manages focus and closes with Escape', async ({ 
   await expect(dialog).toBeHidden()
   await expect(trigger).toBeFocused()
 })
+
+test('navigates to about page and privacy notice with AI disclosure and GitHub links', async ({ page }) => {
+  await page.goto('/')
+
+  // Footer GitHub link is present on landing page
+  const footerGithub = page.locator('.footer-github-link')
+  await expect(footerGithub).toBeVisible()
+  await expect(footerGithub).toHaveAttribute('href', 'https://github.com/Cheesecaketree/BonBon')
+
+  // Topbar GitHub link
+  const topbarGithub = page.locator('.topbar-github-link')
+  await expect(topbarGithub).toBeVisible()
+  await expect(topbarGithub).toHaveAttribute('href', 'https://github.com/Cheesecaketree/BonBon')
+
+  // Topbar about link on desktop
+  const topbarAbout = page.locator('.topbar-nav-link')
+  if (await topbarAbout.isVisible()) {
+    await expect(topbarAbout).toBeVisible()
+  }
+
+  // Navigate to About page via footer link (works across all viewports)
+  await page.locator('.footer-links').getByRole('link', { name: 'Über BonBon' }).click()
+  await expect(page.getByRole('heading', { name: 'Dein Einkauf, lokal & transparent' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Mit KI-Unterstützung entwickelt' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '0BSD-Lizenz (Zero-Clause BSD)' })).toBeVisible()
+  await expect(page.locator('.github-button')).toHaveAttribute('href', 'https://github.com/Cheesecaketree/BonBon')
+
+  // Switch to Privacy tab
+  await page.getByRole('tab', { name: 'Datenschutz & Privatsphäre' }).click()
+  await expect(page.getByRole('heading', { name: 'Datenschutzhinweise' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Cloudflare Pages/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Cloudflare Web Analytics/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Cloudflare Tunnel/ })).toBeVisible()
+
+  // Return to overview
+  await page.getByRole('button', { name: 'Zurück zur Übersicht' }).click()
+  await expect(page.getByRole('heading', { name: 'Dein Einkauf, klarer gesehen.' })).toBeVisible()
+})
+

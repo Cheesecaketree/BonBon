@@ -1,5 +1,6 @@
 import { createI18n } from 'vue-i18n'
 import { germanLanding } from './landing'
+import { englishAbout, germanAbout } from './about'
 
 const savedLocale = localStorage.getItem('bonbon-locale') === 'en' ? 'en' : 'de'
 
@@ -10,6 +11,7 @@ export const i18n = createI18n({
   messages: {
     de: {
       ...germanLanding,
+      ...germanAbout,
       importMore: 'Weitere eBons', importing: 'eBons werden ausgewertet', imported: 'Importiert', duplicate: 'Duplikat', incomplete: 'Unvollständig', failed: 'Fehlgeschlagen',
       importReport: 'Importbericht', filesProcessed: '{done} von {total} Dateien', noText: 'Kein eingebetteter Text gefunden', missing: 'Fehlende Felder: {fields}', notPdf: 'Keine PDF-Datei',
       dashboard: 'Einkaufsjahr im Überblick', dashboardIntro: 'Was, Wann und Wo du einkaufst – aus deinen eBons, lokal ausgewertet',
@@ -77,6 +79,7 @@ export const i18n = createI18n({
       unknownMarketToastTitle: '{count} unbekannte Märkte gefunden', unknownMarketToastCopy: 'Diese Markt-IDs fehlen noch im BonBon-Datensatz. Möchtest du Namen und Adressen ergänzen?', identifyMarkets: 'Märkte zuordnen',
     },
     en: {
+      ...englishAbout,
       tagline: 'See your shopping more clearly.', intro: 'Explore your e-receipts right here in your browser. Your PDFs and purchase data are never uploaded.',
       dropTitle: 'Drop REWE e-receipts here', dropCopy: 'Choose PDFs or an entire folder',
       choosePdfs: 'Choose PDFs', chooseFolder: 'Choose folder', howLabel: 'How it works', howItWorks: 'PDFs in. Patterns out.', pdfNote: 'PDF · embedded text',

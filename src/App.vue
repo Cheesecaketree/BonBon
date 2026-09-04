@@ -10,9 +10,11 @@ import { clearLocalMarketMatches } from './domain/receipts/marketContributions'
 import { clearPersistedData, loadPdfFiles, loadReceipts, savePdfFiles, saveReceipts } from './services/storage/database'
 import { downloadReceiptExport, parseReceiptExport } from './services/storage/interchange'
 import ImportPanel from './features/import/ImportPanel.vue'
+import AppFooter from './features/common/AppFooter.vue'
 import packageInfo from '../package.json'
 const Dashboard = defineAsyncComponent(() => import('./features/dashboard/Dashboard.vue'))
 const MarketHelp = defineAsyncComponent(() => import('./features/markets/MarketHelp.vue'))
+const AboutView = defineAsyncComponent(() => import('./features/about/AboutView.vue'))
 
 const { t, locale } = useI18n()
 const receipts = ref<Receipt[]>([])
@@ -27,8 +29,9 @@ const notice = ref('')
 const unknownMarketPromptCount = ref(0)
 const activeLocale = computed(() => locale.value === 'en' ? 'en' as const : 'de' as const)
 const appVersion = packageInfo.version.replace(/\.0$/, '')
-type AppView = 'dashboard' | 'market-help'
+type AppView = 'dashboard' | 'market-help' | 'about'
 const currentView = ref<AppView>('dashboard')
+const aboutTab = ref<'about' | 'privacy'>('about')
 const sessionFiles = ref<Map<string, File>>(new Map())
 
 function normalizeReceiptMarketId(receipt: Receipt & { marketHeaderExcerpt?: string; marketName?: string }): Receipt {
@@ -49,14 +52,27 @@ function syncRoute() {
   const hash = window.location.hash
   if (hash === '#/help/markets') {
     currentView.value = 'market-help'
+  } else if (hash === '#/about') {
+    currentView.value = 'about'
+    aboutTab.value = 'about'
+  } else if (hash === '#/privacy') {
+    currentView.value = 'about'
+    aboutTab.value = 'privacy'
   } else {
     currentView.value = 'dashboard'
   }
 }
 
-function setView(view: AppView) {
+function setView(view: AppView, tab?: 'about' | 'privacy') {
   currentView.value = view
-  window.location.hash = view === 'market-help' ? '#/help/markets' : '#/'
+  if (view === 'market-help') {
+    window.location.hash = '#/help/markets'
+  } else if (view === 'about') {
+    if (tab) aboutTab.value = tab
+    window.location.hash = (tab || aboutTab.value) === 'privacy' ? '#/privacy' : '#/about'
+  } else {
+    window.location.hash = '#/'
+  }
 }
 
 onMounted(async () => {
@@ -318,12 +334,36 @@ function onModalFiles(files: File[]) {
             </button>
           </div>
         </template>
+        <button
+          class="topbar-nav-link"
+          :class="{ active: currentView === 'about' }"
+          type="button"
+          @click="setView('about', 'about')"
+        >
+          {{ t('about') }}
+        </button>
+        <a
+          class="topbar-github-link"
+          href="https://github.com/Cheesecaketree/BonBon"
+          target="_blank"
+          rel="noopener noreferrer"
+          :title="t('githubRepo')"
+          :aria-label="t('githubRepo')"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+        </a>
         <div class="language-switch" role="group" aria-label="Sprache / Language"><button :class="{ active: locale === 'de' }" :aria-pressed="locale === 'de'" @click="setLocale('de')">DE</button><button :class="{ active: locale === 'en' }" :aria-pressed="locale === 'en'" @click="setLocale('en')">EN</button></div>
       </div>
     </header>
 
     <template v-if="currentView === 'market-help'">
       <MarketHelp :receipts="receipts" :pdf-files="sessionFiles" @navigate="setView('dashboard')" @upload-receipts="openAddModal" />
+    </template>
+
+    <template v-else-if="currentView === 'about'">
+      <AboutView :initial-tab="aboutTab" :has-receipts="receipts.length > 0" @navigate="setView('dashboard')" />
     </template>
 
     <template v-else-if="!receipts.length">
@@ -348,12 +388,15 @@ function onModalFiles(files: File[]) {
             <button class="text-button" type="button" @click="downloadReceiptExport(receipts)">{{ t('export') }}</button>
             <button class="text-button" type="button" @click="jsonInput?.click()">{{ t('importJson') }}</button>
             <button class="text-button danger" type="button" @click="clearAll">{{ t('clear') }}</button>
+            <button class="market-help-link" type="button" @click="setView('about', 'privacy')">{{ t('privacy') }} →</button>
             <button class="market-help-link" type="button" @click="setView('market-help')">{{ t('improveMarketData') }} →</button>
           </div>
           <input ref="jsonInput" class="hidden-file" type="file" accept="application/json,.json" tabindex="-1" aria-hidden="true" @change="importJson" />
         </article>
       </section>
     </template>
+
+    <AppFooter @navigate="setView" />
 
     <!-- Add Receipts Modal -->
     <div v-if="showAddModal" class="modal-backdrop" @click.self="closeAddModal">
