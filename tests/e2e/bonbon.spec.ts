@@ -1,6 +1,21 @@
 import { expect, test } from '@playwright/test'
 import path from 'node:path'
 
+test('explains BonBon when JavaScript is disabled', async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false })
+  const page = await context.newPage()
+  await page.goto('/')
+
+  await expect(page.getByRole('heading', { name: 'Dein Einkauf, klarer gesehen.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'PDF rein. Muster raus.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Deine Daten gehören dir.' })).toBeVisible()
+
+  const response = await page.request.get('/')
+  expect(await response.text()).toContain('Für die lokale Auswertung deiner eBons benötigt BonBon JavaScript.')
+
+  await context.close()
+})
+
 test('imports a synthetic REWE PDF and opens the dashboard', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Dein Einkauf, klarer gesehen.' })).toBeVisible()

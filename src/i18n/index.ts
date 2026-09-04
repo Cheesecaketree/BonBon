@@ -1,4 +1,5 @@
 import { createI18n } from 'vue-i18n'
+import { germanLanding } from './landing'
 
 const savedLocale = localStorage.getItem('bonbon-locale') === 'en' ? 'en' : 'de'
 
@@ -8,10 +9,7 @@ export const i18n = createI18n({
   fallbackLocale: 'de',
   messages: {
     de: {
-      tagline: 'Dein Einkauf, klarer gesehen.', intro: 'Lass deine eBons direkt hier im Browser auswerten. Deine PDFs und Einkaufsdaten werden nicht hochgeladen.',
-      dropTitle: 'REWE eBons hier ablegen', dropCopy: 'PDFs oder einen ganzen Ordner auswählen',
-      choosePdfs: 'PDFs auswählen', chooseFolder: 'Ordner auswählen', howLabel: "So funktioniert's", howItWorks: 'PDF rein. Muster raus.', pdfNote: 'PDF · eingebetteter Text',
-      stepOne: 'eBons auswählen', stepTwo: 'Lokal auswerten', stepThree: 'Gewohnheiten entdecken', local: '100% lokal', noAccount: 'Keine Anmeldung', noCloud: 'Keine Cloud',
+      ...germanLanding,
       importMore: 'Weitere eBons', importing: 'eBons werden ausgewertet', imported: 'Importiert', duplicate: 'Duplikat', incomplete: 'Unvollständig', failed: 'Fehlgeschlagen',
       importReport: 'Importbericht', filesProcessed: '{done} von {total} Dateien', noText: 'Kein eingebetteter Text gefunden', missing: 'Fehlende Felder: {fields}', notPdf: 'Keine PDF-Datei',
       dashboard: 'Einkaufsjahr im Überblick', dashboardIntro: 'Was, Wann und Wo du einkaufst – aus deinen eBons, lokal ausgewertet',
@@ -51,9 +49,8 @@ export const i18n = createI18n({
       copyJson: 'JSON kopieren', copied: 'Kopiert!', backToDashboard: 'Zurück zum Dashboard',
       savedInline: 'Gespeichert ✓',
       fieldName: 'Marktname / Inhaber (optional)', fieldStreet: 'Straße', fieldHouseNumber: 'Hausnr.', fieldZip: 'PLZ', fieldCity: 'Stadt / Ort', fieldCountry: 'Land',
-      intervalDays: '{days} Tage', intervalHours: '{hours} Std.', emptyFiltered: 'Für diese Auswahl gibt es keine eBons.', localOnlyTitle: 'Deine Daten gehören dir.',
-      localOnlyCopy: 'BonBon verarbeitet PDFs lokal. Wenn du die Speicherung aktivierst, werden die gelesenen Bon-Daten und PDFs ausschließlich in diesem Browser gespeichert.',
-      dataControls: 'Daten & Privatsphäre', processingNote: 'Die Verarbeitung geschieht vollständig in diesem Browser-Tab.', dragActive: 'Hier loslassen',
+      intervalDays: '{days} Tage', intervalHours: '{hours} Std.', emptyFiltered: 'Für diese Auswahl gibt es keine eBons.',
+      dataControls: 'Daten & Privatsphäre', dragActive: 'Hier loslassen',
       improveMarketData: 'Marktdaten verbessern', marketHelpTitle: 'Hilf uns, Märkte zuzuordnen',
       marketObservationTitle: 'Marktbeobachtungen beitragen', marketObservationIntro: 'BonBon liest den kurzen Markt-Kopf aus deinen eBons lokal aus. Die einfache Ansicht zeigt nur Märkte, bei denen deine Bons vom aktuellen Datensatz abweichen oder noch kein Eintrag existiert.',
       marketModeLabel: 'Ansicht für Marktbeobachtungen', simpleMode: 'Einfach', advancedMode: 'Erweitert',
