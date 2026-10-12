@@ -96,12 +96,23 @@ export function productTotalQuantity(product: ProductAggregate): number {
 export interface ProductAveragePrice {
   unit: ReceiptQuantityUnit
   averagePriceCents: number
+  minPriceCents: number | null
+  maxPriceCents: number | null
 }
 
 export function productAveragePrices(product: ProductAggregate): ProductAveragePrice[] {
   const unitSpend = new Map<ReceiptQuantityUnit, number>()
+  const unitRanges = new Map<ReceiptQuantityUnit, { min: number; max: number }>()
   for (const entry of product.items) {
-    unitSpend.set(entry.item.quantityUnit, (unitSpend.get(entry.item.quantityUnit) ?? 0) + entry.item.lineTotalCents)
+    const item = entry.item
+    unitSpend.set(item.quantityUnit, (unitSpend.get(item.quantityUnit) ?? 0) + item.lineTotalCents)
+    if (item.quantity <= 0) continue
+    const price = item.unitPriceCents ?? Math.round(item.lineTotalCents / item.quantity)
+    const range = unitRanges.get(item.quantityUnit)
+    unitRanges.set(item.quantityUnit, {
+      min: range ? Math.min(range.min, price) : price,
+      max: range ? Math.max(range.max, price) : price,
+    })
   }
   const result: ProductAveragePrice[] = []
   for (const [unitStr, quantity] of Object.entries(product.quantities)) {
@@ -111,6 +122,8 @@ export function productAveragePrices(product: ProductAggregate): ProductAverageP
     result.push({
       unit,
       averagePriceCents: Math.round(spend / quantity),
+      minPriceCents: unitRanges.get(unit)?.min ?? null,
+      maxPriceCents: unitRanges.get(unit)?.max ?? null,
     })
   }
   return result

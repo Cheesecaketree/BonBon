@@ -1,276 +1,177 @@
-# BonBon 🍬
+# BonBon
 
-**BonBon** is a private, local-first web application for exploring and analyzing digital grocery receipts (**REWE eBons**). It transforms raw receipt PDFs into actionable shopping insights, spending trends, and activity heatmaps—all computed directly within your browser.
+BonBon is a private, local-first web app for exploring REWE eBon PDF receipts. It turns receipts into spending trends, product insights, and shopping-habit visualizations in your browser.
 
-> **Privacy First**: The core web application requires no backend, no server upload, no account creation, and zero telemetry. Your receipts and personal financial data never leave your device.
+The core app has no backend, accounts, telemetry, or receipt uploads. Receipt data stays on your device.
 
----
+## Features
 
-## ✨ Features
+### Receipt import and parsing
 
-### 📄 Local PDF Extraction & Ingestion
+- Import one PDF, several PDFs, or a folder tree.
+- Parse receipts locally with PDF.js and deterministic extraction rules.
+- Extract transaction details, checkout rows, VAT, deposits, discounts, REWE Bonus credit, and legacy PAYBACK data.
+- Use TSE timestamps when available and fall back to the printed receipt time.
+- Prevent duplicate imports with IDs based on timestamp, market ID, and receipt number.
+- Show import progress and diagnostics for receipts that cannot be parsed completely.
 
-- **Drag & Drop / Folder Upload**: Import single PDFs, multiple files at once, or entire directory trees with subfolder support.
-- **Deterministic Client-Side Parsing**: Powered by PDF.js Web Workers and regex extraction without sending documents over a network.
-- **High-Precision Data Extraction**:
-  - **Timestamps**: Uses TSE (Technical Security System / _Technische Sicherheitseinrichtung_) timestamps with second precision, falling back to printed receipt times.
-  - **Store Identification**: Captures Market ID and Register (_Kasse_) number.
-  - **Transaction Details**: Extracts receipt number (_Bon-Nr._) and total transaction amount (in cents to avoid floating-point errors).
-  - **Checkout Rows**: Extracts product names, quantities, quantity units, unit prices, line totals, VAT classes, discounts, deposit charges, and deposit returns.
-  - **Tax and Loyalty Data**: Captures the printed VAT breakdown and REWE Bonus credit earned, spent, and remaining. Legacy PAYBACK points remain separate from euro-denominated REWE Bonus credit.
-- **Smart Deduplication & Import Reporting**: Prevents duplicate entries using composite unique IDs (`rewe:<timestamp>:<marketId>:<receiptNumber>`) and displays real-time parsing status and diagnostic details.
+Money is stored as integer cents to avoid floating-point errors.
 
-### 📊 Rich Analytics & Visualizations
+### REWE account export
 
-BonBon organizes analytics into four dedicated dashboard tabs:
+A separate **REWE account export** flow accepts the extracted HTML files of a REWE account data request. Select all files together or import their folder. It provides shopping-day and product analysis, Bonus transactions, explained customer classifications and consent records, plus app/device activity. A date-range calendar marks days with data and offers month/year presets. Product tables show unit price ranges and per-unit purchase history; technical profile fields remain optional.
 
-#### 1. Overview Tab
-- **Summary KPIs**: Total spend, trip count, average basket size, median basket size, and unique stores visited across single years or all-time datasets.
-- **Dynamic Highlights**: At-a-glance insight strip highlighting earned loyalty credit, year-over-year spending pace delta, top product or peak shopping window, and largest single basket with instant receipt links.
-- **Activity Calendar**: GitHub-style contribution grid mapping daily shopping habits with switchable metrics (**Spend**, **Trip Count**, or **Median Basket Size**), on-hover summary cards, and an interactive day inspection panel. In "All years" mode, shopping activity accumulates onto a single calendar view by date.
+Export tables remain independent from PDF receipts and from each other. Purchased items have day and market information, but no reliable link to the separate receipt index; the app does not invent receipt identities or basket statistics. Item amounts include deposits and returns and do not represent actual payments after Bonus redemption. Missing receipt-day items and days with multiple receipts are shown as coverage information.
 
-#### 2. Money Tab
-- **Financial Breakdown Cards**: Direct totals for REWE Bonus credit earned and redeemed, latest recorded Bonus balance (with observation date), Net deposit charged and refund credits, total promotional discounts, and total VAT paid. Clicking any card opens the matching receipts in the detail drawer.
-- **Spending Pace**: Cumulative year-over-year trajectory comparison tracking day-by-day spending pace against previous calendar years.
-- **Monthly Spend Comparison**: 12-month seasonality for single years, or a multi-year stacked bar chart displaying individual yearly contributions per month.
-- **Market Comparison**: Store ranking list and bar chart comparing expenditure or median basket sizes across visited markets.
-- **Bonus Flow**: Monthly breakdown of REWE Bonus credit earned versus redeemed.
-- **Deposit Flow**: Monthly timeline tracking beverage container deposits charged, deposit returns credited, and discounts.
-- **VAT Breakdown**: Tax paid grouped by VAT rate (e.g. 7%, 19%), detailing net spend, tax paid, and gross total.
-- **Legacy PAYBACK**: Historical tracking of points earned, balance before purchase, and euro cash equivalents.
+Each import replaces the previous export snapshot. This flow has a separate, opt-in IndexedDB store and a separately validated JSON backup. Saving or deleting either flow does not affect the other. HTML scripts and embedded resources stay inert, and original HTML documents are not retained. All processing stays in the browser.
 
-#### 3. Products Tab
-- **Product Ranking Table**: Comprehensive list of all extracted items with real-time text search and multi-column sorting (by total spend, total quantity, average unit price, or product name).
-- **Unit-Aware Metrics**: Correctly normalizes measured quantities (weight in grams/kilograms, volume in milliliters/liters, or piece counts) and calculates weighted average prices per unit.
-- **Product History**: Click any item to inspect its purchase frequency, total spend, and chronological appearance across all receipts.
+### Analytics
 
-#### 4. Habits Tab
-- **Shopping Regularity KPIs**: Longest gap between grocery runs (in days), active week streaks, repeat visit days (days with multiple shopping trips), and busiest calendar week.
-- **Weekly Rhythm Timeline**: Grocery trip frequency per calendar week with the busiest week highlighted, responsive horizontal scrolling, and sticky mobile Y-axes.
-- **Trip Cadence**: Statistical distribution of intervals between trips (<1 day, 1–2 days, 2–4 days, 4–7 days, 1–2 weeks, >2 weeks) with percentage shares.
-- **Time-of-Day Profile**: Detailed hourly breakdown of shopping visits throughout the day, switchable by trip count, expenditure, or median basket.
-- **Market Visits**: Store ranking list and chart by visit frequency.
-- **When You Shop Heatmap**: 24h × 7-day matrix identifying peak shopping habits and routine windows.
+The dashboard has four views:
 
-### 🔍 Interactive Detail Drawer & Drill-Down
-- **Deep Inspection**: Click into any calendar day, receipt, product, or financial metric from cards, tables, and charts to open a dedicated slide-out drawer.
-- **Itemized Receipts**: View complete receipt metadata, TSE timestamps, cash register number, and itemized checkout lists with unit prices, quantity units, and tax classes.
-- **In-Browser PDF Viewer**: Open original stored PDF receipts through ephemeral object URLs without sending documents over a network.
+- **Overview:** total spend, trip counts, basket statistics, year-over-year highlights, and a daily activity calendar.
+- **Money:** spending pace, monthly and market comparisons, Bonus and deposit flows, discounts, VAT, and legacy PAYBACK totals.
+- **Products:** searchable product rankings, unit-aware quantities and prices, and purchase history.
+- **Habits:** shopping gaps and streaks, weekly rhythm, trip cadence, time-of-day patterns, market visits, and a weekday/hour heatmap.
 
-### 🏪 Reviewed Market Directory & Community Contributions
+Select a day, receipt, product, or metric to open its details. Original PDFs can be viewed through temporary browser URLs without uploading them.
 
-- **Reviewed dataset with local fallback**: Bundled records always take precedence. For an unknown ID, a complete local match immediately supplies the name and address throughout the dashboard.
-- **Observation page (`#/help/markets`)**: Review editable market-header text from known and unknown IDs, exclude individual observations, switch the whole page to a denser advanced address layout, and explicitly submit or download the prepared contribution.
-- **Deliberate contribution boundary**: Header suggestions are read from local PDFs and sent only after an exact preview and explicit consent. PDFs, filenames, receipt times, receipt numbers, basket data, and visit counts are never contributed.
-- **Structured Address Data**: Markets are stored with structured fields:
-  - `name`: Store name / owner (e.g. `REWE Michael Reinartz OHG`)
-  - `street`: Street name (e.g. `Lütticher Str.`)
-  - `houseNumber`: House number (e.g. `19` or `23-25`)
-  - `zip`: Postal code / PLZ (e.g. `52064`)
-  - `city`: City / Town (e.g. `Aachen`)
-  - `country`: Country code (e.g. `DE` or `null`)
-  - `lat` / `long`: Geographic coordinates (or `null`)
-- **Deterministic resolution**: Market IDs are canonicalized once, resolved against the reviewed repository dataset, then against local matches, and otherwise displayed as `Markt <id>` / `Market <id>`.
-- **Visible provenance**: Local matches are marked in the market filter and link directly back to the matching page for review or sharing.
-- **Static publication workflow**: An optional write-only API stores reviewed observations for moderation, but market mappings still change only through a validated repository diff and a new build. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+### Storage and portability
 
-### 🔒 Storage, Quick Controls & Data Portability
+- Data is kept in memory by default.
+- Optional IndexedDB persistence stores parsed data and PDFs on the device.
+- Validated JSON backups can be exported and imported.
+- All in-memory and saved data can be cleared from the app.
 
-- **Prominent Quick Controls**: Instant **"+ Add receipts"** (_Weitere eBons_) modal and **"Clear data"** (_Daten löschen_) actions available right in the top navigation bar and dashboard filter bar.
-- **Ephemeral by Default**: Analyzes receipts in-memory; nothing is saved unless explicitly opted in.
-- **Optional Local Persistence**: Toggle on-device IndexedDB storage with one click to retain parsed receipt data and original PDF documents across browser sessions.
-- **Portable JSON Backup**: Export and import validated JSON backups (`v2` schema with Zod validation and backward-compatible `v1` imports).
-- **One-Click Clear**: Safely purge all in-memory and persisted receipts and PDF files on demand.
+### Market directory
 
-### 🌍 Bilingual Interface
+BonBon includes a reviewed directory of REWE markets. Unknown market IDs can be matched locally from receipt headers on the **Improve market data** page (`#/help/markets`). Local matches are available immediately and remain on the device.
 
-- Full interface localization in **German** (default) and **English**, including localized date conventions (day-month-year), weekday order (Monday start), and currency formatting.
+Users can optionally submit the exact market-header text shown in a consent preview. Submissions never include PDFs, filenames, receipt times, receipt numbers, basket contents, or visit counts. The optional API is a write-only moderation inbox; the dashboard does not download market mappings from it. Reviewed mappings become public only after they are merged into the bundled dataset and released.
 
----
+See [CONTRIBUTING.md](CONTRIBUTING.md) to contribute market data or [docs/market-contribution-api.md](docs/market-contribution-api.md) to run the intake service.
 
-## 🛠 Tech Stack
+### Languages
 
-| Layer                    | Technology                                                                                                                    |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Framework & UI**       | [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`, TypeScript)                                                   |
-| **Build Tool**           | [Vite 7](https://vitejs.dev/)                                                                                                 |
-| **PDF Text Extraction**  | [PDF.js](https://mozilla.github.io/pdf.js/) (`pdfjs-dist` with Web Worker)                                                    |
-| **Charts & Graphs**      | [Apache ECharts](https://echarts.apache.org/) + `vue-echarts`                                                                 |
-| **Local Storage**        | [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) via [`idb`](https://github.com/jakearchibald/idb) |
-| **Schema Validation**    | [Zod](https://zod.dev/)                                                                                                       |
-| **Internationalization** | [Vue I18n](https://vue-i18n.intlify.dev/)                                                                                     |
-| **Testing**              | [Vitest](https://vitest.dev/) (Unit) & [Playwright](https://playwright.dev/) (E2E)                                            |
+The interface is available in German (default) and English, with localized dates, weekday order, and currency formatting.
 
----
+## Technology
 
-## 🚀 Getting Started
+| Area | Technology |
+| --- | --- |
+| UI | [Vue 3](https://vuejs.org/), TypeScript, [Vite](https://vite.dev/) |
+| PDF extraction | [PDF.js](https://mozilla.github.io/pdf.js/) |
+| Charts | [Apache ECharts](https://echarts.apache.org/) and `vue-echarts` |
+| Local storage | [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) through [`idb`](https://github.com/jakearchibald/idb) |
+| Validation | [Zod](https://zod.dev/) |
+| Localization | [Vue I18n](https://vue-i18n.intlify.dev/) |
+| Testing | [Vitest](https://vitest.dev/) and [Playwright](https://playwright.dev/) |
 
-### Prerequisites
+## Getting started
 
-- Node.js LTS (v20+ or v22+ recommended)
+### Requirements
+
+- Node.js 20 or newer
 - npm
 
-### Installation
+Install the locked dependencies and start the development server:
 
 ```sh
-npm install
-```
-
-### Development Server
-
-Run the local development server with Hot Module Replacement:
-
-```sh
+npm ci
 npm run dev
 ```
 
-If you are working with the optional community market observation service, start the API backend in watch mode:
+### Build and preview
+
+Build the static app and preview it locally:
 
 ```sh
-npm run dev:api
-```
-
-### Production Build & Preview
-
-Build the standalone client bundle to `dist/` and the optional API service to `api-dist/`:
-
-```sh
-# Build static web app
 npm run build
-
-# (Optional) Build backend contribution API
-npm run build:api
-
-# Preview the static web build locally
 npm run preview
 ```
 
----
-
-## 🧪 Testing
-
-BonBon comes with a comprehensive test suite covering parser regexes, analytics aggregations, storage, and cross-browser E2E interactions:
+The optional market observation API has separate commands:
 
 ```sh
-# Run unit & component tests (Vitest)
+npm run dev:api
+npm run build:api
+npm run start:api
+```
+
+See the [self-hosting guide](docs/market-contribution-api.md) for configuration.
+
+## Testing
+
+```sh
+# Unit and component tests
 npm test
 
-# Run Vitest in watch mode
+# Unit tests in watch mode
 npm run test:watch
 
-# Run end-to-end browser tests (Playwright)
+# End-to-end browser tests
 npm run test:e2e
 ```
 
-### Test Fixtures
+Tests use synthetic, non-private PDFs from `tests/fixtures/`. Regenerate them with `scripts/generate_test_fixtures.py`.
 
-- **Synthetic Fixtures**: Automated CI tests use synthetic, non-private PDF receipts located in `tests/fixtures/`. These can be regenerated via Python (`scripts/generate_test_fixtures.py`).
+### Audit local receipts
 
-### Auditing a Local Receipt Corpus
-
-Use the receipt audit to evaluate parser coverage against a directory of real REWE eBon PDFs:
+The local audit measures parser coverage across a directory of real REWE eBon PDFs:
 
 ```sh
 npm run audit:receipts -- "/absolute/path/to/receipt-folder"
 ```
 
-If the directory argument is omitted, the command defaults to `.receipt-corpus/` in the repository root. Only PDF files directly inside the selected directory are inspected; subdirectories are not traversed.
+Without a directory argument, it reads `.receipt-corpus/` in the repository root. It inspects only PDFs directly inside the selected directory, not its subdirectories.
 
-The audit uses the same PDF.js text extraction and receipt parser as the application. Processing is entirely local: it does not upload PDFs, retain extracted receipt text, or print filenames and product names. Its JSON output contains aggregate counts and amounts only. Monetary fields are integer euro cents, so `1234` means €12.34 and deposit returns or discounts are normally negative.
+The audit uses the same extractor and parser as the app. It does not upload PDFs, retain extracted text, or print filenames or product names. Its JSON output contains aggregate counts and amounts only. Money values are integer cents, so `1234` means €12.34. Deposit returns and discounts are normally negative.
 
-| Output field | Meaning |
+| Field | Meaning |
 | --- | --- |
-| `files` | Number of PDF files found in the directory. |
-| `parsed` / `failed` | Receipts that did or did not contain all required transaction identity and total fields. |
-| `itemCount` | Total checkout rows extracted across parsed receipts. |
-| `weightedItemCount` | Rows with a measured unit such as kilograms instead of the default item count. |
-| `depositCharges` | Sum of deposit charges in cents. |
-| `depositReturns` | Sum of returned-container credits in cents; normally negative. |
-| `discounts` | Sum of negative, non-deposit checkout rows in cents. |
-| `vatRows` | Number of VAT summary rows extracted. |
+| `files` | PDFs found in the directory. |
+| `parsed` / `failed` | Receipts that did or did not contain the required identity and total fields. |
+| `itemCount` | Checkout rows extracted from parsed receipts. |
+| `weightedItemCount` | Rows measured by weight or volume instead of item count. |
+| `depositCharges` / `depositReturns` | Deposit charges and returned-container credits in cents. |
+| `discounts` | Negative, non-deposit checkout rows in cents. |
+| `vatRows` | VAT summary rows extracted. |
 | `bonusReceipts` | Receipts containing at least one REWE Bonus field. |
-| `bonusEarnedCents` / `bonusSpentCents` | Total explicitly printed REWE Bonus credit earned and spent. Missing values are not inferred. |
-| `bonusBalanceObservations` | Receipts containing a printed post-purchase Bonus balance. Balances are observations, not amounts to sum. |
-| `paybackReceipts` | Receipts containing legacy PAYBACK data, kept separate from REWE Bonus. |
-| `receiptsWithoutItems` | Parsed receipts for which no checkout rows were recognized. |
-| `itemTotalMismatches` | Receipts where extracted line totals do not add up to the printed `SUMME`. |
-| `vatGrossMismatches` | Receipts where extracted VAT gross amounts do not add up to the printed `SUMME`. |
-| `largestItemTotalDeltaCents` | Largest absolute difference between an extracted line-item sum and printed receipt total. |
+| `bonusEarnedCents` / `bonusSpentCents` | Printed Bonus credit earned and spent; missing values are not inferred. |
+| `bonusBalanceObservations` | Receipts with a printed post-purchase Bonus balance. These balances should not be summed. |
+| `paybackReceipts` | Receipts containing legacy PAYBACK data. |
+| `receiptsWithoutItems` | Parsed receipts with no recognized checkout rows. |
+| `itemTotalMismatches` / `vatGrossMismatches` | Receipts whose extracted item or VAT totals do not match the printed total. |
+| `largestItemTotalDeltaCents` | Largest absolute difference between an item sum and the printed receipt total. |
 
-For a clean corpus, investigate any non-zero `failed`, `receiptsWithoutItems`, `itemTotalMismatches`, or `vatGrossMismatches` value. Reconciliation proves that the extracted monetary rows are complete for the tested layouts; it does not prove that abbreviated product names are semantically complete or that quantities absent from the receipt can be inferred. The command is diagnostic and reports discrepancies in JSON rather than failing solely because a mismatch was found.
+For a clean corpus, investigate non-zero values for `failed`, `receiptsWithoutItems`, `itemTotalMismatches`, or `vatGrossMismatches`. A successful reconciliation shows that monetary rows are complete for the tested layouts; it does not prove that abbreviated product names are complete or that missing quantities can be inferred. Mismatches are reported as diagnostics and do not by themselves make the command fail.
 
----
-
-## 📂 Project Structure
+## Project structure
 
 ```text
-BonBon/
-├── api/                               # Optional write-only market observation intake API
-│   ├── app.ts                         # Fastify routes, CORS, rate limiting, and validation
-│   ├── database.ts                    # SQLite storage for community submissions
-│   └── server.ts                      # Server bootstrap and graceful shutdown
-├── scripts/                           # Maintenance, validation, and review tooling
-│   ├── audit_receipts.mts             # Local aggregate parser audit for receipt corpora
-│   ├── generate_test_fixtures.py      # Python script to build synthetic PDF fixtures
-│   ├── import_market_data.mjs         # Merge structured contributions into dataset
-│   ├── market_data_tools.mjs          # Dataset validation and conflict detection utilities
-│   ├── market_review_model.ts         # State model and queue builder for review TUI
-│   ├── review_market_observations.tsx # Full-screen interactive terminal review (Ink)
-│   └── validate_market_data.mjs       # Dataset and contribution schema validator
-├── src/
-│   ├── domain/receipts/               # Domain models, parser logic, and analytics
-│   │   ├── analytics.ts               # Core metrics, intervals, and heatmap matrix
-│   │   ├── basketAnalytics.ts         # Product aggregates, financial flows, and VAT
-│   │   ├── enrichment.ts              # Merge itemization, VAT, and loyalty details
-│   │   ├── known-markets.json         # Bundled reviewed market directory
-│   │   ├── marketContributions.ts     # Local match persistence & contribution payloads
-│   │   ├── marketObservationSchema.ts # Zod schemas for intake observations
-│   │   ├── marketReference.ts         # Bundled dataset lookup helpers
-│   │   ├── marketSchema.ts            # Zod schemas for verified market records
-│   │   ├── markets.ts                 # Market ID resolution and display formatting
-│   │   ├── parser.ts                  # Deterministic text parser for REWE eBons
-│   │   └── types.ts                   # Domain TypeScript interfaces & result types
-│   ├── features/
-│   │   ├── dashboard/                 # Analytics tabs, charts, calendar, and drawer
-│   │   │   ├── ActivityCalendar.vue   # Contribution-style habit grid
-│   │   │   ├── ChartCard.vue          # ECharts wrapper with responsive mobile scrolling
-│   │   │   ├── Dashboard.vue          # Main dashboard tabs (Overview, Money, Products, Habits)
-│   │   │   └── DetailDrawer.vue       # Drill-down drawer for days, receipts, and products
-│   │   ├── import/                    # Drag-and-drop & file selection interface
-│   │   │   └── ImportPanel.vue
-│   │   └── markets/                   # Market matching and observation submission
-│   │       └── MarketHelp.vue
-│   ├── i18n/                          # German and English translations
-│   ├── services/
-│   │   ├── marketContributions.ts     # Client HTTP service for observation intake
-│   │   ├── pdf/                       # PDF.js text extraction & file tree traversal
-│   │   └── storage/                   # IndexedDB persistence & Zod JSON interchange
-│   ├── styles/                        # Global theme, typography, and layout styles
-│   ├── App.vue                        # Main application shell and routing
-│   └── main.ts                        # Application bootstrap
-├── tests/
-│   ├── fixtures/                      # Synthetic PDF receipts for automated tests
-│   ├── unit/                          # Vitest suites (parser, analytics, storage, API, UI)
-│   └── e2e/                           # Playwright browser integration & regression tests
-├── Dockerfile.api                     # Container build for the observation API
-├── compose.api.yml                    # Docker Compose configuration for API & data volume
-├── package.json
-└── vite.config.ts
+api/                    Optional market observation API
+docs/                   Maintainer and self-hosting documentation
+scripts/                Validation, audit, import, and review tools
+src/domain/receipts/    Receipt models, parsing, analytics, and market data
+src/features/           Vue feature components
+src/i18n/               German and English translations
+src/services/           PDF, storage, and API integrations
+src/styles/             Shared styles
+tests/fixtures/         Synthetic receipt PDFs
+tests/unit/             Unit and component tests
+tests/e2e/              Playwright tests
 ```
 
----
+## Privacy and security
 
-## 🛡 Security & Privacy Guarantee
+- Receipt parsing and analytics run in the browser.
+- Persistence is opt-in and uses browser storage.
+- Original PDFs are opened with temporary local URLs.
+- The app has no analytics, tracking pixels, or runtime CDN dependencies.
+- Only market-header text visible in the consent preview can be submitted to the optional contribution service.
 
-- **No Server Processing**: All PDF parsing and data crunching execute in your local browser sandbox.
-- **Transparent local retention**: Persistence is opt-in. When enabled, imported PDFs and structured receipt metadata are stored in your browser. Local market matches are stored separately on this device and can be deleted from the matching page or with **Clear data**.
-- **Local receipt viewer**: The matching tool opens original PDFs through temporary in-browser object URLs. The PDF itself is never transmitted; only market-header text visible in the final consent preview can be contributed.
-- **No Third-Party Trackers**: No Google Analytics, no tracking pixels, no external CDNs at runtime.
+## License
 
----
+BonBon's original source code and bundled market dataset use the [Zero-Clause BSD (0BSD) License](LICENSE). You may use, copy, modify, and distribute them for any purpose, with or without fee.
 
-## 📜 License
-
-BonBon's original source code and bundled market dataset are available under the [Zero-Clause BSD (0BSD) License](LICENSE). You may use, copy, modify, and distribute them for any purpose, with or without fee.
-
-The license does not grant rights to third-party material, including receipt contents, trade marks, or data copied from restricted sources. See [CONTRIBUTING.md](CONTRIBUTING.md) before submitting market data.
+The license does not grant rights to third-party material, including receipt contents, trademarks, or data copied from restricted sources. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting market data.

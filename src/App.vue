@@ -15,6 +15,7 @@ import packageInfo from '../package.json'
 const Dashboard = defineAsyncComponent(() => import('./features/dashboard/Dashboard.vue'))
 const MarketHelp = defineAsyncComponent(() => import('./features/markets/MarketHelp.vue'))
 const AboutView = defineAsyncComponent(() => import('./features/about/AboutView.vue'))
+const ReweExportFlow = defineAsyncComponent(() => import('./features/reweExport/ReweExportFlow.vue'))
 
 const { t, locale } = useI18n()
 const receipts = ref<Receipt[]>([])
@@ -29,7 +30,8 @@ const notice = ref('')
 const unknownMarketPromptCount = ref(0)
 const activeLocale = computed(() => locale.value === 'en' ? 'en' as const : 'de' as const)
 const appVersion = packageInfo.version.replace(/\.0$/, '')
-type AppView = 'dashboard' | 'market-help' | 'about'
+type AppView = 'dashboard' | 'market-help' | 'about' | 'rewe-export'
+const exportOpened = ref(false)
 const currentView = ref<AppView>('dashboard')
 const aboutTab = ref<'about' | 'privacy'>('about')
 const sessionFiles = ref<Map<string, File>>(new Map())
@@ -50,7 +52,10 @@ function updateUnknownMarketPrompt(nextReceipts: Receipt[]) {
 
 function syncRoute() {
   const hash = window.location.hash
-  if (hash === '#/help/markets') {
+  if (hash === '#/rewe-export') {
+    exportOpened.value = true
+    currentView.value = 'rewe-export'
+  } else if (hash === '#/help/markets') {
     currentView.value = 'market-help'
   } else if (hash === '#/about') {
     currentView.value = 'about'
@@ -65,7 +70,10 @@ function syncRoute() {
 
 function setView(view: AppView, tab?: 'about' | 'privacy') {
   currentView.value = view
-  if (view === 'market-help') {
+  if (view === 'rewe-export') {
+    exportOpened.value = true
+    window.location.hash = '#/rewe-export'
+  } else if (view === 'market-help') {
     window.location.hash = '#/help/markets'
   } else if (view === 'about') {
     if (tab) aboutTab.value = tab
@@ -210,7 +218,7 @@ async function togglePersistence() {
 }
 
 async function clearAll() {
-  if (!window.confirm(t('clearConfirm'))) return
+  if (!window.confirm(t('reweExport.clearReceiptsConfirm'))) return
   receipts.value = []
   sessionFiles.value = new Map()
   report.value = []
@@ -324,13 +332,13 @@ function onModalFiles(files: File[]) {
         </a>
       </div>
       <div class="topbar-actions">
-        <template v-if="receipts.length">
+        <template v-if="receipts.length && currentView !== 'rewe-export'">
           <div class="topbar-data-actions">
             <button class="topbar-btn primary" type="button" @click="openAddModal">
               <span class="plus-icon">+</span> {{ t('importMore') }}
             </button>
-            <button class="topbar-btn danger-ghost" type="button" :title="t('clear')" @click="clearAll">
-              {{ t('clear') }}
+            <button class="topbar-btn danger-ghost" type="button" :title="t('reweExport.clearReceipts')" @click="clearAll">
+              {{ t('reweExport.clearReceipts') }}
             </button>
           </div>
         </template>
@@ -358,7 +366,16 @@ function onModalFiles(files: File[]) {
       </div>
     </header>
 
-    <template v-if="currentView === 'market-help'">
+    <nav class="data-flow-switch" :aria-label="t('reweExport.flows')">
+      <button type="button" :class="{ active: currentView !== 'rewe-export' }" :aria-pressed="currentView !== 'rewe-export'" @click="setView('dashboard')">{{ t('reweExport.receipts') }}</button>
+      <button type="button" :class="{ active: currentView === 'rewe-export' }" :aria-pressed="currentView === 'rewe-export'" @click="setView('rewe-export')">{{ t('reweExport.accountExport') }}</button>
+    </nav>
+    <ReweExportFlow v-if="exportOpened" v-show="currentView === 'rewe-export'" />
+
+    <template v-if="currentView === 'rewe-export'">
+      <!-- Keep the independently owned export flow mounted when changing data sources. -->
+    </template>
+    <template v-else-if="currentView === 'market-help'">
       <MarketHelp :receipts="receipts" :pdf-files="sessionFiles" @navigate="setView('dashboard')" @upload-receipts="openAddModal" />
     </template>
 
@@ -374,6 +391,10 @@ function onModalFiles(files: File[]) {
         </div>
         <ImportPanel :processing="processing" @files="processFiles" />
       </section>
+      <section class="export-entry">
+        <div><p class="eyebrow">{{ t('reweExport.kicker') }}</p><h2>{{ t('reweExport.entryTitle') }}</h2><p>{{ t('reweExport.entryCopy') }}</p></div>
+        <button class="button secondary" type="button" @click="setView('rewe-export')">{{ t('reweExport.entryButton') }} →</button>
+      </section>
       <section class="steps" aria-labelledby="steps-title"><div><p class="eyebrow">{{ t('howLabel') }}</p><h2 id="steps-title">{{ t('howItWorks') }}</h2></div><ol><li><span>01</span>{{ t('stepOne') }}</li><li><span>02</span>{{ t('stepTwo') }}</li><li><span>03</span>{{ t('stepThree') }}</li></ol></section>
     </template>
 
@@ -387,7 +408,7 @@ function onModalFiles(files: File[]) {
             <button class="toggle-control" :class="{ active: persistenceEnabled }" type="button" role="switch" :aria-checked="persistenceEnabled" @click="togglePersistence"><i></i><span>{{ persistenceEnabled ? t('saved') : t('saveDevice') }}</span></button>
             <button class="text-button" type="button" @click="downloadReceiptExport(receipts)">{{ t('export') }}</button>
             <button class="text-button" type="button" @click="jsonInput?.click()">{{ t('importJson') }}</button>
-            <button class="text-button danger" type="button" @click="clearAll">{{ t('clear') }}</button>
+            <button class="text-button danger" type="button" @click="clearAll">{{ t('reweExport.clearReceipts') }}</button>
             <button class="market-help-link" type="button" @click="setView('about', 'privacy')">{{ t('privacy') }} →</button>
             <button class="market-help-link" type="button" @click="setView('market-help')">{{ t('improveMarketData') }} →</button>
           </div>
@@ -411,12 +432,12 @@ function onModalFiles(files: File[]) {
       </div>
     </div>
 
-    <section v-if="processing || report.length" class="import-report" aria-live="polite">
+    <section v-if="currentView !== 'rewe-export' && (processing || report.length)" class="import-report" aria-live="polite">
       <header><div><p class="eyebrow">{{ processing ? t('importing') : t('importReport') }}</p><strong>{{ t('filesProcessed', { done: processed, total: processingTotal }) }}</strong></div><progress :value="processed" :max="processingTotal"></progress><button v-if="!processing" class="report-close" type="button" :aria-label="t('close')" @click="report = []">×</button></header>
       <details v-if="!processing"><summary>{{ t('importReport') }}</summary><ul><li v-for="item in report" :key="`${item.filename}-${item.status}`"><span class="status-dot" :class="item.status"></span><span>{{ item.filename }}</span><strong>{{ statusLabel(item.status) }}</strong><small v-if="item.message">{{ item.message }}</small></li></ul></details>
     </section>
-    <p v-if="notice" class="toast" role="status">{{ notice }}</p>
-    <aside v-if="unknownMarketPromptCount" class="unknown-market-toast" role="status">
+    <p v-if="notice && currentView !== 'rewe-export'" class="toast" role="status">{{ notice }}</p>
+    <aside v-if="unknownMarketPromptCount && currentView !== 'rewe-export'" class="unknown-market-toast" role="status">
       <div><strong>{{ t('unknownMarketToastTitle', { count: unknownMarketPromptCount }) }}</strong><p>{{ t('unknownMarketToastCopy') }}</p></div>
       <button class="button primary" type="button" @click="setView('market-help'); unknownMarketPromptCount = 0">{{ t('identifyMarkets') }}</button>
       <button class="toast-dismiss" type="button" :aria-label="t('close')" @click="unknownMarketPromptCount = 0">×</button>

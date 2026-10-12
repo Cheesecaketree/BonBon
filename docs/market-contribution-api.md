@@ -1,12 +1,12 @@
 # Self-hosting the market observation API
 
-BonBon resolves markets exclusively from the dataset bundled into each static build. The observation API is a write-only intake and moderation service; it is never queried by the dashboard for market data.
+BonBon resolves markets only from the dataset bundled with each static build. The observation API is a write-only intake and moderation service. The dashboard never queries it for market data.
 
 ## Run the service
 
-### Option A: Docker Compose (Production / Self-hosting)
+### Option A: Docker Compose
 
-Copy `.env.api.example` to `.env.api`, replace the admin token with a long random value (at least 32 characters), set every allowed BonBon origin exactly, and add your Cloudflare Tunnel token (`TUNNEL_TOKEN`). Then run:
+Copy `.env.api.example` to `.env.api`. Set a random admin token of at least 32 characters, list each allowed BonBon origin exactly, and add the Cloudflare Tunnel token (`TUNNEL_TOKEN`). Then run:
 
 ```sh
 docker compose --env-file .env.api -f compose.api.yml up -d --build
@@ -19,9 +19,9 @@ The Compose stack runs both the `market-contributions` API and a `cloudflared` t
 VITE_MARKET_CONTRIBUTION_API_URL=https://market-observations.example npm run build
 ```
 
-### Option B: Local Node.js Development
+### Option B: Local Node.js development
 
-For local development without Docker, you can run the API directly using `npm`:
+To run the API locally without Docker:
 
 1. Create a `.env.local` file in the project root:
    ```sh
@@ -52,13 +52,13 @@ MARKET_CONTRIBUTION_ADMIN_TOKEN=replace-with-the-admin-token \
 npm run review:market-observations
 ```
 
-The full-screen terminal review groups pending records by market ID, shows distinct submitted text, and keeps all suggested address fields visible together. Exact address confirmations for known markets are staged automatically. Press **1**–**9** to autofill the draft from the corresponding submitted observation. Every remaining screen uses the same one-key actions: **A** approve, **E** edit, **R** reject, **D** defer, arrow keys to navigate, and **Q** to quit. Editing uses Tab or arrow keys between fields, Ctrl+S to save, and Escape to cancel.
+The terminal review groups pending records by market ID, shows distinct submitted text, and keeps suggested address fields together. Exact address confirmations for known markets are staged automatically. Press **1**–**9** to fill the draft from an observation. Use **A** to approve, **E** to edit, **R** to reject, **D** to defer, the arrow keys to navigate, and **Q** to quit. While editing, use Tab or the arrow keys to move between fields, Ctrl+S to save, and Escape to cancel.
 
 The final summary does not change anything until **C** is pressed. Approved new markets and deliberate corrections to existing markets are validated and written to `src/domain/receipts/known-markets.json` before API decisions are recorded. Deferred entries remain pending.
 
 Review files are written to the ignored `.market-contributions/` directory. Run `npm test`, `npm run build`, and `npm run build:api` before committing the sorted dataset diff.
 
-## Configuration & Environment Variables
+## Configuration
 
 | Variable | Default | Description |
 | --- | --- | --- |

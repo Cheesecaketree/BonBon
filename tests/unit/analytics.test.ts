@@ -124,10 +124,33 @@ describe('enriched receipt analytics', () => {
       name: 'PASTA', spendCents: 700, occurrences: 2, quantities: { item: 2, kg: 0.5 },
     })
     expect(productAveragePrices(products[0])).toEqual([
-      { unit: 'item', averagePriceCents: 200 },
-      { unit: 'kg', averagePriceCents: 600 },
+      { unit: 'item', averagePriceCents: 200, minPriceCents: 200, maxPriceCents: 200 },
+      { unit: 'kg', averagePriceCents: 600, minPriceCents: 600, maxPriceCents: 600 },
     ])
     expect(productTotalQuantity(products[0])).toBe(2.5)
+  })
+
+  it('tracks unit price extremes separately from the quantity-weighted average', () => {
+    const products = productAggregates([{
+      ...receipts[0],
+      items: [
+        { name: 'PASTA', kind: 'product', quantity: 2, quantityUnit: 'item', lineTotalCents: 400, unitPriceCents: 200 },
+        { name: 'PASTA', kind: 'product', quantity: 1, quantityUnit: 'item', lineTotalCents: 300 },
+        { name: 'PASTA', kind: 'product', quantity: 0, quantityUnit: 'item', lineTotalCents: 0 },
+        { name: 'PASTA', kind: 'product', quantity: 0.333, quantityUnit: 'kg', lineTotalCents: 200, unitPriceCents: 599 },
+        { name: 'PASTA', kind: 'product', quantity: 0.5, quantityUnit: 'kg', lineTotalCents: 350 },
+        { name: 'PASTA', kind: 'discount', quantity: 1, quantityUnit: 'item', lineTotalCents: -50 },
+      ],
+    }])
+    expect(productAveragePrices(products[0])).toEqual([
+      { unit: 'item', averagePriceCents: 233, minPriceCents: 200, maxPriceCents: 300 },
+      { unit: 'kg', averagePriceCents: 660, minPriceCents: 599, maxPriceCents: 700 },
+    ])
+    expect(productAveragePrices(productAggregates([{ ...receipts[0], items: [
+      { name: 'FREE', kind: 'product', quantity: 1, quantityUnit: 'item', lineTotalCents: 0 },
+    ] }])[0])).toEqual([
+      { unit: 'item', averagePriceCents: 0, minPriceCents: 0, maxPriceCents: 0 },
+    ])
   })
 
   it('summarises signed adjustments, loyalty, and the latest balance', () => {

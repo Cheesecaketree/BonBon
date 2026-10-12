@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import Dashboard from '../../src/features/dashboard/Dashboard.vue'
 import ChartCard from '../../src/features/dashboard/ChartCard.vue'
 import DetailDrawer from '../../src/features/dashboard/DetailDrawer.vue'
+import BasketComparison from '../../src/features/dashboard/BasketComparison.vue'
 import { i18n } from '../../src/i18n'
 import type { Receipt } from '../../src/domain/receipts/types'
 
@@ -60,10 +61,10 @@ describe('dashboard local market provenance', () => {
     expect(wrapper.find('.local-match-indicator').exists()).toBe(false)
   })
 
-  it('curates analytics into four switchable views', async () => {
+  it('curates analytics into five switchable views', async () => {
     const wrapper = shallowMount(Dashboard, { props: { receipts: analyticsReceipts, locale: 'de' }, global: { plugins: [i18n] } })
     const tabs = wrapper.findAll('[role="tab"]')
-    expect(tabs.map((tab) => tab.text())).toEqual(['Überblick', 'Geld', 'Produkte', 'Gewohnheiten'])
+    expect(tabs.map((tab) => tab.text())).toEqual(['Überblick', 'Geld', 'Produkte', 'Gewohnheiten', 'Warenkörbe'])
     expect(wrapper.find('#dashboard-panel-overview').exists()).toBe(true)
     expect(wrapper.get('.insight-strip').attributes('aria-label')).toBe('Auffälligkeiten')
     await tabs[1].trigger('click')
@@ -72,14 +73,31 @@ describe('dashboard local market provenance', () => {
     expect(wrapper.text()).not.toContain('Datum und Tageszeit')
     await wrapper.findAll('[role="tab"]')[2].trigger('click')
     expect(wrapper.find('#dashboard-panel-products').exists()).toBe(true)
-    expect(wrapper.findAll('.product-table th').map((th) => th.text())).toEqual(['Produkt', 'Menge', 'Ø-Preis', 'Ausgaben'])
+    expect(wrapper.findAll('.product-table th').map((th) => th.text())).toEqual(['Produkt', 'Menge', 'Ø-Preis', 'Min.-Preis', 'Max.-Preis', 'Ausgaben'])
     expect(wrapper.findAll('.product-controls select option').map((opt) => opt.text())).toEqual(['Nach Ausgaben', 'Nach Menge', 'Nach Ø-Preis', 'Nach Name'])
     expect(wrapper.text()).toContain('PASTA')
     expect(wrapper.text()).toContain('Ø-Preis')
     expect(wrapper.text()).toContain('3,00 € / Stk.')
+    expect(wrapper.findComponent(BasketComparison).exists()).toBe(false)
+    await wrapper.findAll('[role="tab"]')[4].trigger('click')
+    expect(wrapper.find('#dashboard-panel-baskets').exists()).toBe(true)
+    expect(wrapper.findComponent(BasketComparison).props('receipts')).toHaveLength(2)
     await wrapper.findAll('[role="tab"]')[3].trigger('click')
     expect(wrapper.find('#dashboard-panel-habits').exists()).toBe(true)
     expect(wrapper.findAllComponents(ChartCard).map((card) => card.props('title'))).toEqual(['Wochenverlauf', 'Abstände zwischen Einkäufen', 'Tageszeitprofil', 'Besuche nach Markt', 'Wann du einkaufst'])
+  })
+
+  it('updates product price extremes with the year filter', async () => {
+    const wrapper = shallowMount(Dashboard, { props: { receipts: analyticsReceipts, locale: 'de' }, global: { plugins: [i18n] } })
+    await wrapper.findAll('[role="tab"]')[2].trigger('click')
+    await wrapper.get('.filter-field select').setValue('all')
+    expect(wrapper.findAll('.product-table tbody td').map((cell) => cell.text())).toEqual([
+      'PASTA ›', '3 Stk.', '2,67 € / Stk.', '2,50 € / Stk.', '3,00 € / Stk.', '8,00 €',
+    ])
+    await wrapper.get('.filter-field select').setValue('2026')
+    expect(wrapper.findAll('.product-table tbody td').slice(2, 5).map((cell) => cell.text())).toEqual([
+      '3,00 € / Stk.', '3,00 € / Stk.', '3,00 € / Stk.',
+    ])
   })
 
   it('supports arrow-key tab navigation and metric toggles', async () => {

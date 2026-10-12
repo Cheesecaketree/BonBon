@@ -331,6 +331,35 @@ button.calendar-cell.active { cursor: pointer; }
 .product-table td:first-child button span { float: right; color: var(--berry); font-size: 18px; }
 .product-table tr:hover td { background: rgba(155,40,72,.035); }
 .empty-products { padding: 48px 16px; color: #786b6b; text-align: center; }
+.usual-basket, .basket-matching { min-width: 0; }
+.basket-coverage, .basket-empty { color: #786b6b; font-size: 12px; line-height: 1.6; }
+.basket-staples { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 12px; margin: 20px 0 0; padding: 0; list-style: none; }
+.basket-staples li { min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 12px; }
+.basket-staples button { width: 100%; padding: 0; border: 0; color: var(--ink); background: none; font: inherit; font-size: 14px; font-weight: 750; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.basket-staples button span { float: right; color: var(--berry); }
+.basket-frequency { display: block; margin: 8px 0; color: #786b6b; font-size: 11px; }
+.basket-staples dl { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 14px 0 0; }
+.basket-staples dt { color: #786b6b; font-size: 10px; }
+.basket-staples dd { margin: 4px 0 0; font-size: 12px; }
+.basket-groups { display: grid; gap: 18px; margin: 24px 0 0; padding: 0; list-style: none; }
+.basket-group { min-width: 0; padding: 22px; border: 1px solid var(--line); border-radius: 14px; background: #fffaf1; }
+.basket-group>header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: baseline; }
+.basket-group h3 { margin: 0; font-family: Georgia,serif; font-size: 27px; font-weight: 400; }
+.basket-group>header strong { color: var(--berry); font-size: 12px; }
+.basket-group-products { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 22px; padding: 0; list-style: none; }
+.basket-group-products li { display: flex; flex-wrap: wrap; gap: 8px; max-width: 100%; padding: 9px 12px; border-radius: 9px; background: #f3eade; font-size: 12px; }
+.basket-group-products button { padding: 0; border: 0; color: var(--ink); background: none; font: inherit; font-weight: 750; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.basket-group-products span { color: #786b6b; }
+.basket-group h4 { margin: 0 0 12px; font-size: 13px; }
+.basket-group-prices { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 0; }
+.basket-group-prices>div { padding: 14px; border-radius: 10px; background: #f3eade; }
+.basket-group-prices dt { color: #756767; font-size: 11px; line-height: 1.5; }
+.basket-group-prices dd { margin: 8px 0 0; color: var(--berry); font-family: Georgia,serif; font-size: clamp(20px,2vw,28px); }
+.basket-group-receipts { margin-top: 20px; }
+.basket-group-receipts summary { min-height: 44px; padding: 12px 0; color: var(--berry); font-size: 12px; font-weight: 750; cursor: pointer; }
+.basket-group-receipts ul { padding: 0; margin: 0; list-style: none; }
+.basket-group-receipts button { width: 100%; min-height: 44px; padding: 12px 0; border: 0; border-top: 1px solid var(--line); color: var(--ink); background: none; font: inherit; font-size: 12px; text-align: left; line-height: 1.6; overflow-wrap: anywhere; cursor: pointer; }
+.basket-group-receipts button span { color: var(--berry); }
 .load-more { display: block; margin: 22px auto 0; padding: 10px 18px; border: 1px solid var(--berry); border-radius: 999px; color: var(--berry); background: transparent; font-weight: 800; cursor: pointer; }
 
 .day-backdrop { position: fixed; z-index: 30; inset: 0; display: flex; justify-content: flex-end; background: rgba(36,29,29,.35); backdrop-filter: blur(4px); }
@@ -813,7 +842,9 @@ body.dialog-open { overflow: hidden; }
   .product-heading { flex-direction: column; }
   .product-controls { display: grid; grid-template-columns: 1fr; width: 100%; }
   .product-controls input, .product-controls select { width: 100%; min-height: 46px; }
-  .product-table { min-width: 540px; }
+  .product-table { min-width: 760px; }
+  .basket-group { padding: 16px; }
+  .basket-group-prices { grid-template-columns: 1fr; }
 
   .calendar-card, .chart-card { margin-top: 16px; border-radius: 16px; }
   .calendar-card { padding: 22px 16px 18px; }

@@ -83,6 +83,8 @@ describe('receipt detail drawer', () => {
     expect(wrapper.get('.quantity-facts').text()).toContain('2')
     expect(wrapper.get('.quantity-facts').text()).toContain('Durchschnittspreis')
     expect(wrapper.get('.quantity-facts').text()).toContain('1,83 € / Stk.')
+    expect(wrapper.get('.quantity-facts').text()).toContain('Min.-Preis1,50 € / Stk.')
+    expect(wrapper.get('.quantity-facts').text()).toContain('Max.-Preis2,00 € / Stk.')
   })
 
   it('does not render an empty facts grid when a receipt has no extra facts', () => {

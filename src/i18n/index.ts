@@ -1,6 +1,8 @@
 import { createI18n } from 'vue-i18n'
+import { englishReweExport, germanReweExport } from './reweExport'
 import { germanLanding } from './landing'
 import { englishAbout, germanAbout } from './about'
+import { englishBasketComparison, germanBasketComparison } from './basketComparison'
 
 const savedLocale = localStorage.getItem('bonbon-locale') === 'en' ? 'en' : 'de'
 
@@ -10,6 +12,8 @@ export const i18n = createI18n({
   fallbackLocale: 'de',
   messages: {
     de: {
+      reweExport: germanReweExport,
+      basketComparison: germanBasketComparison,
       ...germanLanding,
       ...germanAbout,
       importMore: 'Weitere eBons', importing: 'eBons werden ausgewertet', imported: 'Importiert', duplicate: 'Duplikat', incomplete: 'Unvollständig', failed: 'Fehlgeschlagen',
@@ -28,7 +32,7 @@ export const i18n = createI18n({
       bonusFlow: 'REWE Bonus im Verlauf', bonusFlowCopy: 'Gesammeltes und eingelöstes Euro-Guthaben pro Monat.', depositFlow: 'Pfand und Rabatte', depositFlowCopy: 'Bezahltes und zurückgegebenes Pfand sowie Rabatte pro Monat.',
       vatBreakdown: 'Mehrwertsteuer', vatBreakdownCopy: 'Enthaltene Steuer nach Steuersatz.', netAmount: 'Netto', grossAmount: 'Brutto', vatRate: '{rate} % MwSt.', vatClass: 'MwSt.-Klasse {value}',
       legacyPayback: 'Früheres PAYBACK-Programm', legacyPaybackCopy: 'Historische PAYBACK-Punkte bleiben getrennt vom heutigen REWE Bonus in Euro.', pointsEarned: 'Punkte gesammelt', latestPoints: 'Letzter Punktestand', latestEquivalent: 'Letzter Euro-Gegenwert',
-      topProduct: 'Produkt mit höchsten Ausgaben', productRanking: 'Deine Produkte', product: 'Produkt', productsTabCopy: 'Produkte nach Ausgaben und Käufen.', productSpend: 'Ausgaben für dieses Produkt', purchases: 'Käufe', quantity: 'Menge', avgPrice: 'Ø-Preis', averagePrice: 'Durchschnittspreis', searchProducts: 'Produkte suchen', sortProducts: 'Produkte sortieren', productSortSpend: 'Nach Ausgaben', productSortQuantity: 'Nach Menge', productSortOccurrences: 'Nach Käufen', productSortAvgPrice: 'Nach Ø-Preis', productSortName: 'Nach Name', noProductsFound: 'Keine passenden Produkte gefunden.', showMoreProducts: 'Mehr Produkte anzeigen', productOccurrenceCount: '{count} Käufe',
+      topProduct: 'Produkt mit höchsten Ausgaben', productRanking: 'Deine Produkte', product: 'Produkt', productsTabCopy: 'Produkte nach Ausgaben und Käufen.', productSpend: 'Ausgaben für dieses Produkt', purchases: 'Käufe', quantity: 'Menge', avgPrice: 'Ø-Preis', averagePrice: 'Durchschnittspreis', minPrice: 'Min.-Preis', maxPrice: 'Max.-Preis', searchProducts: 'Produkte suchen', sortProducts: 'Produkte sortieren', productSortSpend: 'Nach Ausgaben', productSortQuantity: 'Nach Menge', productSortOccurrences: 'Nach Käufen', productSortAvgPrice: 'Nach Ø-Preis', productSortName: 'Nach Name', noProductsFound: 'Keine passenden Produkte gefunden.', showMoreProducts: 'Mehr Produkte anzeigen', productOccurrenceCount: '{count} Käufe',
       itemCoverage: 'Artikeldetails sind für {covered} von {total} Bons verfügbar.', reimportForDetails: 'Bons erneut importieren', receiptItemsUnavailable: 'Für diesen älteren Import sind keine Artikeldetails verfügbar.', receiptDetails: 'Bondetails', contributingReceipts: '{count} zugehörige Bons', back: 'Zurück',
       financialMetrics: { bonusEarned: 'Bonus gesammelt', bonusSpent: 'Bonus eingelöst', bonusBalance: 'Bonus-Guthaben', depositNet: 'Pfand-Saldo', depositCharged: 'Pfand bezahlt', depositReturned: 'Pfand zurückgegeben', discount: 'Rabatte', vat: '{rate} % MwSt.', paybackEarned: 'PAYBACK Punkte gesammelt', paybackPointsBefore: 'PAYBACK Punktestand', paybackEquivalent: 'PAYBACK Gegenwert' },
       quantityUnits: { item: 'Stk.', kg: 'kg', g: 'g', l: 'l', ml: 'ml' },
@@ -79,6 +83,8 @@ export const i18n = createI18n({
       unknownMarketToastTitle: '{count} unbekannte Märkte gefunden', unknownMarketToastCopy: 'Diese Markt-IDs fehlen noch im BonBon-Datensatz. Möchtest du Namen und Adressen ergänzen?', identifyMarkets: 'Märkte zuordnen',
     },
     en: {
+      reweExport: englishReweExport,
+      basketComparison: englishBasketComparison,
       ...englishAbout,
       tagline: 'See your shopping more clearly.', intro: 'Explore your e-receipts right here in your browser. Your PDFs and purchase data are never uploaded.',
       dropTitle: 'Drop REWE e-receipts here', dropCopy: 'Choose PDFs or an entire folder',
@@ -100,7 +106,7 @@ export const i18n = createI18n({
       bonusFlow: 'REWE Bonus over time', bonusFlowCopy: 'Euro credit earned and redeemed each month.', depositFlow: 'Deposits and discounts', depositFlowCopy: 'Bottle deposits charged and returned, plus discounts each month.',
       vatBreakdown: 'VAT breakdown', vatBreakdownCopy: 'Included tax by rate.', netAmount: 'Net', grossAmount: 'Gross', vatRate: '{rate}% VAT', vatClass: 'VAT class {value}',
       legacyPayback: 'Former PAYBACK programme', legacyPaybackCopy: 'Historical PAYBACK points remain separate from today’s euro-based REWE Bonus.', pointsEarned: 'Points earned', latestPoints: 'Latest points balance', latestEquivalent: 'Latest euro equivalent',
-      topProduct: 'Highest-spend product', productRanking: 'Your products', product: 'Product', productsTabCopy: 'Products by spend and purchases.', productSpend: 'Spend on this product', purchases: 'Purchases', quantity: 'Quantity', avgPrice: 'Avg. price', averagePrice: 'Average price', searchProducts: 'Search products', sortProducts: 'Sort products', productSortSpend: 'By spend', productSortQuantity: 'By quantity', productSortOccurrences: 'By purchases', productSortAvgPrice: 'By avg. price', productSortName: 'By name', noProductsFound: 'No matching products found.', showMoreProducts: 'Show more products', productOccurrenceCount: '{count} purchases',
+      topProduct: 'Highest-spend product', productRanking: 'Your products', product: 'Product', productsTabCopy: 'Products by spend and purchases.', productSpend: 'Spend on this product', purchases: 'Purchases', quantity: 'Quantity', avgPrice: 'Avg. price', averagePrice: 'Average price', minPrice: 'Min. price', maxPrice: 'Max. price', searchProducts: 'Search products', sortProducts: 'Sort products', productSortSpend: 'By spend', productSortQuantity: 'By quantity', productSortOccurrences: 'By purchases', productSortAvgPrice: 'By avg. price', productSortName: 'By name', noProductsFound: 'No matching products found.', showMoreProducts: 'Show more products', productOccurrenceCount: '{count} purchases',
       itemCoverage: 'Item details are available for {covered} of {total} receipts.', reimportForDetails: 'Re-import receipts', receiptItemsUnavailable: 'Item details are unavailable for this older import.', receiptDetails: 'Receipt details', contributingReceipts: '{count} contributing receipts', back: 'Back',
       financialMetrics: { bonusEarned: 'Bonus earned', bonusSpent: 'Bonus redeemed', bonusBalance: 'Bonus balance', depositNet: 'Net deposit', depositCharged: 'Deposit charged', depositReturned: 'Deposit returned', discount: 'Discounts', vat: '{rate}% VAT', paybackEarned: 'PAYBACK points earned', paybackPointsBefore: 'PAYBACK points balance', paybackEquivalent: 'PAYBACK equivalent' },
       quantityUnits: { item: 'pcs', kg: 'kg', g: 'g', l: 'l', ml: 'ml' },

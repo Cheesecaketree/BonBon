@@ -1,27 +1,27 @@
 # Contributing market data
 
-BonBon is a static application with an optional, write-only market-observation inbox. A market becomes available to everyone only after its record is reviewed, merged into the repository, and included in a new static-site release. The dashboard never downloads market mappings from the API.
+BonBon is a static app with an optional, write-only inbox for market observations. A market becomes available to everyone only after its record is reviewed, merged, and included in a release. The dashboard never downloads market mappings from the API.
 
 ## Prepare a contribution
 
 1. Import your REWE eBon locally and open **Improve market data**.
-2. Review the locally detected market-header text for every market you want to include. Correct or exclude individual observations as needed.
+2. Review the detected market-header text for each market you want to include. Correct or exclude individual observations as needed.
 3. Optionally switch the whole page to **Advanced** and review the structured name and address hints. A complete advanced mapping can also be saved locally.
 4. Review the submission summary, explicitly consent, and submit it to the project inbox. If the service is unavailable, download the exact prepared JSON file.
 
 Local matches are used immediately for unknown IDs. A bundled match from a later BonBon release always takes precedence.
 
-The reviewed market-header text shown in the contribution preview is stored by the project when submitted. Receipt PDFs, filenames, receipt times, receipt numbers, basket contents, and visit counts are not included. Identical text from several receipts is collapsed locally before submission.
+When you submit, the project stores the market-header text shown in the preview. It does not receive receipt PDFs, filenames, receipt times, receipt numbers, basket contents, or visit counts. Identical text from several receipts is combined locally before submission.
 
 Observations whose parsed address already matches the bundled market entry are discarded locally and never submitted. A differing observation or deliberately changed advanced field remains eligible as a correction.
 
 ## Rights and licensing
 
-Only submit market data you are allowed to share. Do not submit receipt contents, personal data, trade marks, or data copied from sources with terms that prohibit redistribution. By submitting a contribution, you permit BonBon to include, modify, and distribute that contribution under the repository's [0BSD license](LICENSE).
+Only submit market data you are allowed to share. Do not submit receipt contents, personal data, trademarks, or data copied from sources whose terms prohibit redistribution. By submitting a contribution, you permit BonBon to include, modify, and distribute it under the repository's [0BSD license](LICENSE).
 
 ## Review submitted observations
 
-Maintainers review API submissions with `npm run review:market-observations` as documented in [`docs/market-contribution-api.md`](docs/market-contribution-api.md). The interactive terminal UI automatically stages exact known-market confirmations, groups raw observations, displays all structured fields together, and applies approved additions or corrections only after final validation and confirmation.
+Maintainers review API submissions with `npm run review:market-observations`, as described in [`docs/market-contribution-api.md`](docs/market-contribution-api.md). The terminal interface stages exact known-market confirmations, groups raw observations, shows all structured fields together, and applies approved changes only after final validation and confirmation.
 
 When a review session is confirmed, approved mappings are validated and written directly to `src/domain/receipts/known-markets.json`. An archival copy of the accepted contribution is also saved into `.market-contributions/reviewed-<timestamp>.json`. There is no need to run `npm run import:markets` after an interactive review.
 
@@ -30,7 +30,7 @@ When a review session is confirmed, approved mappings are validated and written 
 
 ## Import a structured contribution
 
-If you have a structured contribution file (either from a previous review session or prepared according to `marketContributionFileSchema`), you can import it into the dataset.
+You can import a structured contribution created by a previous review session or prepared according to `marketContributionFileSchema`.
 
 From the repository root, install dependencies and place the structured file in the ignored contribution inbox:
 
@@ -66,7 +66,7 @@ If validation or conflict detection fails, `known-markets.json` is left unchange
 
 ## Pull request process
 
-1. Fork the repository, create a branch, and run the review or importer as described above.
+1. Fork the repository, create a branch, and run the review tool or importer described above.
 2. Review the generated `src/domain/receipts/known-markets.json` diff. It should contain only the newly added or corrected, correctly sorted market records.
 3. Run the same checks used by CI:
 

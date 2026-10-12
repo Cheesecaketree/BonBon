@@ -251,7 +251,11 @@ onBeforeUnmount(() => {
         <dl class="receipt-facts quantity-facts">
           <div><dt>{{ t('purchases') }}</dt><dd>{{ integer.format(target.product.occurrences) }}</dd></div>
           <div v-for="(value, unit) in target.product.quantities" :key="unit"><dt>{{ t('quantity') }}</dt><dd>{{ decimal.format(value ?? 0) }} {{ t(`quantityUnits.${unit}`) }}</dd></div>
-          <div v-for="avg in productAveragePrices(target.product)" :key="`avg-${avg.unit}`"><dt>{{ t('averagePrice') }}</dt><dd>{{ money(avg.averagePriceCents) }} / {{ t(`quantityUnits.${avg.unit}`) }}</dd></div>
+          <template v-for="price in productAveragePrices(target.product)" :key="price.unit">
+            <div><dt>{{ t('averagePrice') }}</dt><dd>{{ money(price.averagePriceCents) }} / {{ t(`quantityUnits.${price.unit}`) }}</dd></div>
+            <div><dt>{{ t('minPrice') }}</dt><dd>{{ price.minPriceCents === null ? '–' : money(price.minPriceCents) }} / {{ t(`quantityUnits.${price.unit}`) }}</dd></div>
+            <div><dt>{{ t('maxPrice') }}</dt><dd>{{ price.maxPriceCents === null ? '–' : money(price.maxPriceCents) }} / {{ t(`quantityUnits.${price.unit}`) }}</dd></div>
+          </template>
         </dl>
       </template>
 
