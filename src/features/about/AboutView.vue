@@ -182,11 +182,6 @@ function switchTab(tab: 'about' | 'privacy') {
           </article>
 
           <article class="privacy-section-card">
-            <h2>{{ t('privacyCrowdsourcingTitle') }}</h2>
-            <p>{{ t('privacyCrowdsourcingCopy') }}</p>
-          </article>
-
-          <article class="privacy-section-card">
             <h2>{{ t('privacyThirdPartyTitle') }}</h2>
             <p>{{ t('privacyThirdPartyCopy') }}</p>
           </article>

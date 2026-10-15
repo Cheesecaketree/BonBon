@@ -18,33 +18,20 @@ const analyticsReceipts: Receipt[] = [
   { ...receipt, id: '2026-b', localTimestamp: '2026-02-08T16:00:00', marketId: '9999', totalCents: 4200 },
 ]
 
-describe('dashboard local market provenance', () => {
+describe('dashboard market resolution and analytics', () => {
   beforeEach(() => {
     localStorage.clear()
     i18n.global.locale.value = 'de'
   })
 
-  it('shows the local name and links its source indicator back to matching', async () => {
-    localStorage.setItem('bonbon-local-market-matches', JSON.stringify({
-      '9999': {
-        name: 'REWE Beispiel', street: 'Hauptstr.', houseNumber: '2', zip: '12345', city: 'Berlin',
-        country: 'DE', lat: null, long: null,
-      },
-    }))
-    const wrapper = shallowMount(Dashboard, {
-      props: { receipts: [receipt], locale: 'de' },
-      global: { plugins: [i18n] },
-    })
-
-    expect(wrapper.text()).toContain('REWE Beispiel, Hauptstr. 2, 12345 Berlin (#9999)')
-    const indicator = wrapper.get('.local-match-indicator')
-    expect(indicator.text()).toContain('Lokal')
-    expect(indicator.attributes('title')).toContain('nur in diesem Browser gespeichert')
-    await indicator.trigger('click')
-    expect(wrapper.emitted('improveMarkets')).toHaveLength(1)
+  it('shows unknown market IDs without contribution prompts', () => {
+    const wrapper = shallowMount(Dashboard, { props: { receipts: [receipt], locale: 'de' }, global: { plugins: [i18n] } })
+    expect(wrapper.text()).toContain('Markt 9999')
+    expect(wrapper.find('.local-match-indicator').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Marktdaten verbessern')
   })
 
-  it('does not mark bundled matches as local even if a stale local value exists', () => {
+  it('uses bundled matches even if obsolete browser overrides exist', () => {
     localStorage.setItem('bonbon-local-market-matches', JSON.stringify({
       '0011': {
         name: 'Wrong local value', street: 'Wrong', houseNumber: '1', zip: '12345', city: 'Wrong',

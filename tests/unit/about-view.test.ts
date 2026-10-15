@@ -41,7 +41,7 @@ describe('AboutView', () => {
     expect(wrapper.text()).toContain('Open Source on GitHub')
   })
 
-  it('renders the privacy tab with Cloudflare Pages, Web Analytics, and Tunnel details', async () => {
+  it('renders hosting and storage privacy details without the removed submission service', async () => {
     const wrapper = mount(AboutView, {
       props: { initialTab: 'privacy' },
       global: { plugins: [i18n] },
@@ -50,7 +50,7 @@ describe('AboutView', () => {
     expect(wrapper.text()).toContain('Datenschutzhinweise')
     expect(wrapper.text()).toContain('Cloudflare Pages')
     expect(wrapper.text()).toContain('Cloudflare Web Analytics')
-    expect(wrapper.text()).toContain('Cloudflare Tunnel')
+    expect(wrapper.text()).not.toContain('Cloudflare Tunnel')
     expect(wrapper.text()).toContain('Lokale Speicherung')
   })
 
@@ -116,8 +116,6 @@ describe('AppFooter', () => {
     await links[1].trigger('click')
     expect(wrapper.emitted('navigate')).toContainEqual(['about', 'privacy'])
 
-    // Link 2: market-help
-    await links[2].trigger('click')
-    expect(wrapper.emitted('navigate')).toContainEqual(['market-help'])
+    expect(wrapper.findAll('a[href="#/help/markets"]')).toHaveLength(0)
   })
 })

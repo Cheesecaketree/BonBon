@@ -69,7 +69,6 @@ test('finds matching baskets automatically in their own tab', async ({ page }, t
   await expect(page.locator('.basket-group header')).toContainText('100 % Übereinstimmung · 2 Einkäufe')
   await expect(page.locator('.basket-group-products li')).toHaveCount(2)
   await expect(page.locator('.basket-group-prices dd')).toHaveText(['4,50 €', '4,88 €', '5,25 €'])
-  await page.locator('.unknown-market-toast .toast-dismiss').click()
   await page.locator('.basket-matching').screenshot({ path: `/private/tmp/bonbon-basket-matches-${testInfo.project.name}.png`, style: '.toast, .import-report { visibility: hidden; }' })
   await page.locator('.basket-group-products button').filter({ hasText: 'MILK' }).click()
   await expect(page.getByRole('dialog').locator('.drawer-receipts li')).toHaveCount(2)
@@ -86,20 +85,21 @@ test('finds matching baskets automatically in their own tab', async ({ page }, t
   await expect(page.locator('.basket-group')).toHaveCount(1)
 })
 
-test('reviews market observations in simple and page-wide advanced modes', async ({ page }) => {
+test('keeps bundled markets and shows no contribution UI or unknown-market prompt', async ({ page }) => {
   await page.goto('/')
   await page.locator('input[type="file"][accept*="pdf"]').first().setInputFiles(path.resolve('tests/fixtures/rewe-one-page.pdf'))
-  await page.getByRole('button', { name: /Marktdaten verbessern/ }).first().click()
-
-  await expect(page.getByRole('heading', { name: 'Marktbeobachtungen beitragen' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Einfach', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.locator('.observation-editor textarea')).toHaveCount(1)
-  await expect(page.locator('.advanced-market-fields')).toHaveCount(0)
-
-  await page.getByRole('button', { name: 'Erweitert', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Erweitert', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect(page.locator('.advanced-market-fields')).toHaveCount(1)
-  await expect(page.getByRole('button', { name: 'Beobachtungen senden' }).or(page.getByText('Die Online-Einreichung ist in diesem Build nicht eingerichtet.'))).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Einkaufsjahr im Überblick' })).toBeVisible()
+  await expect(page.locator('.unknown-market-toast')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Marktdaten verbessern/ })).toHaveCount(0)
+  await expect(page.locator('a[href="#/help/markets"]')).toHaveCount(0)
+  await expect(page.locator('.market-menu')).toContainText('REWE Michael Reinartz OHG')
+  const backup = { schemaVersion: 2, exportedAt: '2026-10-12T12:00:00Z', receipts: [{ id: 'synthetic-unknown', source: 'rewe', filename: 'synthetic.pdf', localTimestamp: '2026-09-01T12:00:00', marketId: '9999', registerId: '1', receiptNumber: '999', totalCents: 100 }] }
+  await page.locator('input[type="file"][accept*="json"]').setInputFiles({ name: 'synthetic-unknown.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(backup)) })
+  await expect(page.locator('.market-menu')).toContainText('Markt 9999')
+  await expect(page.locator('.unknown-market-toast')).toHaveCount(0)
+  await page.evaluate(() => { window.location.hash = '#/help/markets' })
+  await expect(page.getByRole('heading', { name: 'Einkaufsjahr im Überblick' })).toBeVisible()
+  await expect(page.locator('.market-help-page')).toHaveCount(0)
 })
 
 for (const viewport of [
@@ -198,7 +198,7 @@ test('navigates to about page and privacy notice with AI disclosure and GitHub l
   await expect(page.getByRole('heading', { name: 'Datenschutzhinweise' })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Cloudflare Pages/ })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Cloudflare Web Analytics/ })).toBeVisible()
-  await expect(page.getByRole('heading', { name: /Cloudflare Tunnel/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /Cloudflare Tunnel/ })).toHaveCount(0)
 
   // Return to overview
   await page.getByRole('button', { name: 'Zurück zur Übersicht' }).click()

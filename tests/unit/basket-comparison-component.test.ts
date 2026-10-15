@@ -14,7 +14,7 @@ const receipts: Receipt[] = [
 describe('usual basket and receipt comparison', () => {
   beforeEach(() => { i18n.global.locale.value = 'en' })
   function render(values = receipts) {
-    return mount(BasketComparison, { props: { receipts: values, locale: 'en', localMarketMatches: {} }, global: { plugins: [i18n] } })
+    return mount(BasketComparison, { props: { receipts: values, locale: 'en' }, global: { plugins: [i18n] } })
   }
 
   it('shows the best matching groups without receipt selectors', async () => {

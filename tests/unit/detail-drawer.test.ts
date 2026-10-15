@@ -20,7 +20,7 @@ describe('receipt detail drawer', () => {
 
   it('shows an itemized receipt with quantities, unit prices, VAT, and Bonus', () => {
     const wrapper = mount(DetailDrawer, {
-      props: { target: { kind: 'receipt', receipt }, locale: 'de', allYears: false, localMarketMatches: {} },
+      props: { target: { kind: 'receipt', receipt }, locale: 'de', allYears: false },
       global: { plugins: [i18n] },
       attachTo: document.body,
     })
@@ -35,7 +35,7 @@ describe('receipt detail drawer', () => {
 
   it('navigates from a day to a receipt and back without leaving the drawer', async () => {
     const wrapper = mount(DetailDrawer, {
-      props: { target: { kind: 'day', day: { date: '2026-08-31', totalCents: 475, trips: 1, averageCents: 475, receipts: [receipt] } }, locale: 'de', allYears: false, localMarketMatches: {} },
+      props: { target: { kind: 'day', day: { date: '2026-08-31', totalCents: 475, trips: 1, averageCents: 475, receipts: [receipt] } }, locale: 'de', allYears: false },
       global: { plugins: [i18n] },
     })
     await wrapper.get('.drawer-receipts button').trigger('click')
@@ -56,7 +56,7 @@ describe('receipt detail drawer', () => {
       ],
     }
     const wrapper = mount(DetailDrawer, {
-      props: { target: { kind: 'financial', metric: 'depositNet', receipts: [receipt, returnedReceipt] }, locale: 'de', allYears: false, localMarketMatches: {} },
+      props: { target: { kind: 'financial', metric: 'depositNet', receipts: [receipt, returnedReceipt] }, locale: 'de', allYears: false },
       global: { plugins: [i18n] },
     })
     expect(wrapper.findAll('.drawer-context-value strong').map((value) => value.text())).toEqual(['+0,75 €', '−0,50 €'])
@@ -73,7 +73,7 @@ describe('receipt detail drawer', () => {
   it('groups repeated product lines into one receipt contribution', () => {
     const repeated: Receipt = { ...receipt, items: [...receipt.items!, { name: 'PASTA', kind: 'product', quantity: 1, quantityUnit: 'item', lineTotalCents: 150 }] }
     const wrapper = mount(DetailDrawer, {
-      props: { target: { kind: 'product', product: { name: 'PASTA', spendCents: 550, occurrences: 2, quantities: { item: 3 }, items: [{ receipt: repeated, item: repeated.items![0] }, { receipt: repeated, item: repeated.items![2] }] } }, locale: 'de', allYears: false, localMarketMatches: {} },
+      props: { target: { kind: 'product', product: { name: 'PASTA', spendCents: 550, occurrences: 2, quantities: { item: 3 }, items: [{ receipt: repeated, item: repeated.items![0] }, { receipt: repeated, item: repeated.items![2] }] } }, locale: 'de', allYears: false },
       global: { plugins: [i18n] },
     })
     expect(wrapper.findAll('.drawer-receipts li')).toHaveLength(1)
@@ -96,7 +96,7 @@ describe('receipt detail drawer', () => {
       vatBreakdown: undefined,
     }
     const wrapper = mount(DetailDrawer, {
-      props: { target: { kind: 'receipt', receipt: plainReceipt }, locale: 'de', allYears: false, localMarketMatches: {} },
+      props: { target: { kind: 'receipt', receipt: plainReceipt }, locale: 'de', allYears: false },
       global: { plugins: [i18n] },
     })
     expect(wrapper.find('.receipt-facts').exists()).toBe(false)
@@ -104,7 +104,7 @@ describe('receipt detail drawer', () => {
 
   it('labels VAT receipt values with the selected rate', () => {
     const wrapper = mount(DetailDrawer, {
-      props: { target: { kind: 'financial', metric: 'vat', vatRatePercent: 7, receipts: [receipt] }, locale: 'de', allYears: false, localMarketMatches: {} },
+      props: { target: { kind: 'financial', metric: 'vat', vatRatePercent: 7, receipts: [receipt] }, locale: 'de', allYears: false },
       global: { plugins: [i18n] },
     })
     expect(wrapper.get('.drawer-receipt-columns').text()).toContain('7 % MwSt.')
@@ -113,7 +113,7 @@ describe('receipt detail drawer', () => {
 
   it('closes with Escape', async () => {
     const wrapper = mount(DetailDrawer, {
-      props: { target: { kind: 'receipt', receipt }, locale: 'de', allYears: false, localMarketMatches: {} },
+      props: { target: { kind: 'receipt', receipt }, locale: 'de', allYears: false },
       global: { plugins: [i18n] },
       attachTo: document.body,
     })
@@ -124,7 +124,7 @@ describe('receipt detail drawer', () => {
 
   it('manages focus when drilling into a receipt and navigating back', async () => {
     const wrapper = mount(DetailDrawer, {
-      props: { target: { kind: 'day', day: { date: '2026-08-31', totalCents: 475, trips: 1, averageCents: 475, receipts: [receipt] } }, locale: 'de', allYears: false, localMarketMatches: {} },
+      props: { target: { kind: 'day', day: { date: '2026-08-31', totalCents: 475, trips: 1, averageCents: 475, receipts: [receipt] } }, locale: 'de', allYears: false },
       global: { plugins: [i18n] },
       attachTo: document.body,
     })

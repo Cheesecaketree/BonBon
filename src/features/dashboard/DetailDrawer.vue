@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 import type { DayAggregate, Receipt, ReceiptItem } from '../../domain/receipts/types'
 import { productAveragePrices, type ProductAggregate } from '../../domain/receipts/basketAnalytics'
 import { getMarketShortName } from '../../domain/receipts/markets'
-import type { LocalMarketMatches } from '../../domain/receipts/marketContributions'
 
 export type FinancialMetric = 'bonusEarned' | 'bonusSpent' | 'bonusBalance' | 'depositNet' | 'depositCharged' | 'depositReturned' | 'discount' | 'vat' | 'paybackEarned' | 'paybackPointsBefore' | 'paybackEquivalent'
 export type DrawerTarget =
@@ -17,7 +16,6 @@ const props = defineProps<{
   target: DrawerTarget
   locale: 'de' | 'en'
   allYears: boolean
-  localMarketMatches: LocalMarketMatches
 }>()
 const emit = defineEmits<{ close: [] }>()
 const { t } = useI18n()
@@ -39,7 +37,7 @@ function formatMonthDay(value: string) {
   const [year, month, day] = value.slice(0, 10).split('-').map(Number)
   return new Intl.DateTimeFormat(props.locale === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)))
 }
-function market(receipt: Receipt) { return getMarketShortName(receipt.marketId, t('market'), props.localMarketMatches) }
+function market(receipt: Receipt) { return getMarketShortName(receipt.marketId, t('market')) }
 function quantity(item: ReceiptItem) { return `${decimal.value.format(item.quantity)} ${t(`quantityUnits.${item.quantityUnit}`)}` }
 
 const receipts = computed(() => {

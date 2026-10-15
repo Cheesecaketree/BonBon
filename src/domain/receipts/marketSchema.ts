@@ -1,7 +1,6 @@
 import { z } from 'zod'
 
 export const MARKET_DATASET_SCHEMA_VERSION = 2 as const
-export const MARKET_CONTRIBUTION_SCHEMA_VERSION = 2 as const
 
 export function canonicalizeMarketId(raw: string): string | undefined {
   const trimmed = raw.trim()
@@ -29,15 +28,6 @@ export const marketDataSchema = z.object({
   }
 })
 
-export const completeMarketMappingSchema = marketDataSchema.superRefine((value, context) => {
-  for (const field of ['street', 'houseNumber', 'zip', 'city', 'country'] as const) {
-    if (!value[field]) context.addIssue({ code: 'custom', path: [field], message: `${field} is required.` })
-  }
-  if (value.country === 'DE' && value.zip && !/^\d{5}$/.test(value.zip)) {
-    context.addIssue({ code: 'custom', path: ['zip'], message: 'German postal codes must contain five digits.' })
-  }
-})
-
 export const canonicalMarketSchema = marketDataSchema.extend({
   retailer: z.literal('rewe'),
   marketId: canonicalMarketIdSchema,
@@ -60,25 +50,6 @@ export const marketDatasetSchema = z.object({
   }
 })
 
-export const marketContributionSchema = completeMarketMappingSchema.extend({
-  retailer: z.literal('rewe'),
-  marketId: canonicalMarketIdSchema,
-}).strict()
-
-export const marketContributionFileSchema = z.object({
-  schemaVersion: z.literal(MARKET_CONTRIBUTION_SCHEMA_VERSION),
-  markets: z.array(marketContributionSchema).min(1),
-}).strict().superRefine((submission, context) => {
-  const seen = new Set<string>()
-  for (const [index, market] of submission.markets.entries()) {
-    const key = `${market.retailer}:${market.marketId}`
-    if (seen.has(key)) context.addIssue({ code: 'custom', path: ['markets', index, 'marketId'], message: `Duplicate contribution: ${key}` })
-    seen.add(key)
-  }
-})
-
 export type MarketData = z.infer<typeof marketDataSchema>
 export type CanonicalMarket = z.infer<typeof canonicalMarketSchema>
 export type MarketDataset = z.infer<typeof marketDatasetSchema>
-export type MarketContribution = z.infer<typeof marketContributionSchema>
-export type MarketContributionFile = z.infer<typeof marketContributionFileSchema>

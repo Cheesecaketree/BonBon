@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n'
 
 defineEmits<{
-  navigate: [view: 'dashboard' | 'market-help' | 'about', tab?: 'about' | 'privacy']
+  navigate: [view: 'dashboard' | 'about', tab?: 'about' | 'privacy']
 }>()
 
 const { t } = useI18n()
@@ -29,9 +29,6 @@ const { t } = useI18n()
           </li>
           <li>
             <a href="#/privacy" @click.prevent="$emit('navigate', 'about', 'privacy')">{{ t('privacy') }}</a>
-          </li>
-          <li>
-            <a href="#/help/markets" @click.prevent="$emit('navigate', 'market-help')">{{ t('improveMarketData') }}</a>
           </li>
           <li>
             <a

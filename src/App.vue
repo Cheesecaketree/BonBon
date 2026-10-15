@@ -4,16 +4,13 @@ import { useI18n } from 'vue-i18n'
 import type { ImportStatus, Receipt } from './domain/receipts/types'
 import { parseReweReceipt, receiptId } from './domain/receipts/parser'
 import { mergeReceiptEnrichment } from './domain/receipts/enrichment'
-import { isKnownMarket } from './domain/receipts/markets'
 import { canonicalizeMarketId } from './domain/receipts/marketSchema'
-import { clearLocalMarketMatches } from './domain/receipts/marketContributions'
 import { clearPersistedData, loadPdfFiles, loadReceipts, savePdfFiles, saveReceipts } from './services/storage/database'
 import { downloadReceiptExport, parseReceiptExport } from './services/storage/interchange'
 import ImportPanel from './features/import/ImportPanel.vue'
 import AppFooter from './features/common/AppFooter.vue'
 import packageInfo from '../package.json'
 const Dashboard = defineAsyncComponent(() => import('./features/dashboard/Dashboard.vue'))
-const MarketHelp = defineAsyncComponent(() => import('./features/markets/MarketHelp.vue'))
 const AboutView = defineAsyncComponent(() => import('./features/about/AboutView.vue'))
 const ReweExportFlow = defineAsyncComponent(() => import('./features/reweExport/ReweExportFlow.vue'))
 
@@ -27,10 +24,9 @@ const processingTotal = ref(0)
 const jsonInput = ref<HTMLInputElement>()
 const persistenceEnabled = ref(localStorage.getItem('bonbon-persistence-enabled') === 'true')
 const notice = ref('')
-const unknownMarketPromptCount = ref(0)
 const activeLocale = computed(() => locale.value === 'en' ? 'en' as const : 'de' as const)
 const appVersion = packageInfo.version.replace(/\.0$/, '')
-type AppView = 'dashboard' | 'market-help' | 'about' | 'rewe-export'
+type AppView = 'dashboard' | 'about' | 'rewe-export'
 const exportOpened = ref(false)
 const currentView = ref<AppView>('dashboard')
 const aboutTab = ref<'about' | 'privacy'>('about')
@@ -46,17 +42,12 @@ function normalizeReceiptMarketId(receipt: Receipt & { marketHeaderExcerpt?: str
   }
 }
 
-function updateUnknownMarketPrompt(nextReceipts: Receipt[]) {
-  unknownMarketPromptCount.value = new Set(nextReceipts.filter((receipt) => !isKnownMarket(receipt.marketId)).map((receipt) => receipt.marketId)).size
-}
-
 function syncRoute() {
   const hash = window.location.hash
   if (hash === '#/rewe-export') {
     exportOpened.value = true
     currentView.value = 'rewe-export'
-  } else if (hash === '#/help/markets') {
-    currentView.value = 'market-help'
+
   } else if (hash === '#/about') {
     currentView.value = 'about'
     aboutTab.value = 'about'
@@ -73,8 +64,7 @@ function setView(view: AppView, tab?: 'about' | 'privacy') {
   if (view === 'rewe-export') {
     exportOpened.value = true
     window.location.hash = '#/rewe-export'
-  } else if (view === 'market-help') {
-    window.location.hash = '#/help/markets'
+
   } else if (view === 'about') {
     if (tab) aboutTab.value = tab
     window.location.hash = (tab || aboutTab.value) === 'privacy' ? '#/privacy' : '#/about'
@@ -95,7 +85,6 @@ onMounted(async () => {
       ])
       if (persistedReceipts.length) {
         receipts.value = persistedReceipts.map(normalizeReceiptMarketId).sort((a, b) => a.localTimestamp.localeCompare(b.localTimestamp))
-        updateUnknownMarketPrompt(receipts.value)
       }
       if (persistedPdfs.size) {
         sessionFiles.value = persistedPdfs
@@ -179,7 +168,6 @@ async function processFiles(files: File[]) {
   await Promise.all(Array.from({ length: Math.min(4, files.length) }, worker))
   const nextReceipts = [...receipts.value]
   const receiptIndexes = new Map(nextReceipts.map((receipt, receiptIndex) => [receipt.id, receiptIndex]))
-  let importedCount = 0
   report.value = outcomes.map((outcome, fileIndex) => {
     const filename = files[fileIndex].name
     if (outcome.status === 'failed') return { filename, status: 'failed', message: outcome.message }
@@ -193,11 +181,9 @@ async function processFiles(files: File[]) {
     }
     receiptIndexes.set(outcome.receipt.id, nextReceipts.length)
     nextReceipts.push(outcome.receipt)
-    importedCount += 1
     return { filename, status: 'imported' }
   })
   receipts.value = nextReceipts.sort((a, b) => a.localTimestamp.localeCompare(b.localTimestamp))
-  if (importedCount) updateUnknownMarketPrompt(receipts.value)
   processing.value = false
 }
 
@@ -223,8 +209,6 @@ async function clearAll() {
   sessionFiles.value = new Map()
   report.value = []
   notice.value = ''
-  unknownMarketPromptCount.value = 0
-  clearLocalMarketMatches()
   await clearPersistedData()
 }
 
@@ -259,7 +243,6 @@ async function importJson(event: Event) {
       }
     }
     receipts.value = nextReceipts.sort((a, b) => a.localTimestamp.localeCompare(b.localTimestamp))
-    if (additionsCount) updateUnknownMarketPrompt(receipts.value)
     notice.value = t('jsonImported', { count: additionsCount + updatedCount })
   } catch {
     notice.value = t('jsonInvalid')
@@ -375,10 +358,6 @@ function onModalFiles(files: File[]) {
     <template v-if="currentView === 'rewe-export'">
       <!-- Keep the independently owned export flow mounted when changing data sources. -->
     </template>
-    <template v-else-if="currentView === 'market-help'">
-      <MarketHelp :receipts="receipts" :pdf-files="sessionFiles" @navigate="setView('dashboard')" @upload-receipts="openAddModal" />
-    </template>
-
     <template v-else-if="currentView === 'about'">
       <AboutView :initial-tab="aboutTab" :has-receipts="receipts.length > 0" @navigate="setView('dashboard')" />
     </template>
@@ -399,7 +378,7 @@ function onModalFiles(files: File[]) {
     </template>
 
     <template v-else>
-      <Dashboard :receipts="receipts" :locale="activeLocale" @add-receipts="openAddModal" @improve-markets="setView('market-help')" />
+      <Dashboard :receipts="receipts" :locale="activeLocale" @add-receipts="openAddModal" />
       <section class="utility-section">
         <ImportPanel compact :processing="processing" @files="processFiles" />
         <article class="privacy-card">
@@ -409,8 +388,7 @@ function onModalFiles(files: File[]) {
             <button class="text-button" type="button" @click="downloadReceiptExport(receipts)">{{ t('export') }}</button>
             <button class="text-button" type="button" @click="jsonInput?.click()">{{ t('importJson') }}</button>
             <button class="text-button danger" type="button" @click="clearAll">{{ t('reweExport.clearReceipts') }}</button>
-            <button class="market-help-link" type="button" @click="setView('about', 'privacy')">{{ t('privacy') }} →</button>
-            <button class="market-help-link" type="button" @click="setView('market-help')">{{ t('improveMarketData') }} →</button>
+            <button class="privacy-help-link" type="button" @click="setView('about', 'privacy')">{{ t('privacy') }} →</button>
           </div>
           <input ref="jsonInput" class="hidden-file" type="file" accept="application/json,.json" tabindex="-1" aria-hidden="true" @change="importJson" />
         </article>
@@ -437,10 +415,6 @@ function onModalFiles(files: File[]) {
       <details v-if="!processing"><summary>{{ t('importReport') }}</summary><ul><li v-for="item in report" :key="`${item.filename}-${item.status}`"><span class="status-dot" :class="item.status"></span><span>{{ item.filename }}</span><strong>{{ statusLabel(item.status) }}</strong><small v-if="item.message">{{ item.message }}</small></li></ul></details>
     </section>
     <p v-if="notice && currentView !== 'rewe-export'" class="toast" role="status">{{ notice }}</p>
-    <aside v-if="unknownMarketPromptCount && currentView !== 'rewe-export'" class="unknown-market-toast" role="status">
-      <div><strong>{{ t('unknownMarketToastTitle', { count: unknownMarketPromptCount }) }}</strong><p>{{ t('unknownMarketToastCopy') }}</p></div>
-      <button class="button primary" type="button" @click="setView('market-help'); unknownMarketPromptCount = 0">{{ t('identifyMarkets') }}</button>
-      <button class="toast-dismiss" type="button" :aria-label="t('close')" @click="unknownMarketPromptCount = 0">×</button>
-    </aside>
+
   </main>
 </template>

@@ -8,9 +8,14 @@
     "skipLibCheck": true,
     "allowJs": true,
     "checkJs": false,
-    "types": ["node"],
-    "resolveJsonModule": true,
-    "jsx": "react-jsx"
+    "types": [
+      "node"
+    ],
+    "resolveJsonModule": true
   },
-  "include": ["scripts/**/*", "src/domain/receipts/**/*.ts", "src/domain/receipts/known-markets.json"]
+  "include": [
+    "scripts/**/*",
+    "src/domain/receipts/**/*.ts",
+    "src/domain/receipts/known-markets.json"
+  ]
 }

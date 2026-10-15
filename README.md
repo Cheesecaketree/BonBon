@@ -21,7 +21,7 @@ Money is stored as integer cents to avoid floating-point errors.
 
 A separate **REWE account export** flow accepts the extracted HTML files of a REWE account data request. Select all files together or import their folder. It provides shopping-day and product analysis, Bonus transactions, explained customer classifications and consent records, plus app/device activity. A date-range calendar marks days with data and offers month/year presets. Product tables show unit price ranges and per-unit purchase history; technical profile fields remain optional.
 
-Export tables remain independent from PDF receipts and from each other. Purchased items have day and market information, but no reliable link to the separate receipt index; the app does not invent receipt identities or basket statistics. Item amounts include deposits and returns and do not represent actual payments after Bonus redemption. Missing receipt-day items and days with multiple receipts are shown as coverage information.
+Export tables remain independent from PDF receipts and from each other. Purchased items have day and market information, but no reliable link to the separate receipt index; the app does not invent receipt identities or basket statistics. Item amounts include deposits and returns and do not represent actual payments after Bonus redemption. Receipt numbers and timestamps remain in the snapshot for future linking.
 
 Each import replaces the previous export snapshot. This flow has a separate, opt-in IndexedDB store and a separately validated JSON backup. Saving or deleting either flow does not affect the other. HTML scripts and embedded resources stay inert, and original HTML documents are not retained. All processing stays in the browser.
 
@@ -45,11 +45,9 @@ Select a day, receipt, product, or metric to open its details. Original PDFs can
 
 ### Market directory
 
-BonBon includes a reviewed directory of REWE markets. Unknown market IDs can be matched locally from receipt headers on the **Improve market data** page (`#/help/markets`). Local matches are available immediately and remain on the device.
+BonBon includes a bundled directory of REWE markets. Known IDs resolve to the included store names and addresses; unknown IDs remain visible as market IDs.
 
-Users can optionally submit the exact market-header text shown in a consent preview. Submissions never include PDFs, filenames, receipt times, receipt numbers, basket contents, or visit counts. The optional API is a write-only moderation inbox; the dashboard does not download market mappings from it. Reviewed mappings become public only after they are merged into the bundled dataset and released.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) to contribute market data or [docs/market-contribution-api.md](docs/market-contribution-api.md) to run the intake service.
+To add or correct a mapping, edit `src/domain/receipts/known-markets.json` and open a GitHub pull request. Keep `schemaVersion: 2`, canonical numeric IDs (at least four digits, including leading zeroes), and entries sorted by numeric market ID. Use the existing structured fields; use `null` for unknown fields and supply coordinates as a pair or leave both `null`. Run `npm run validate:markets`, `npm test` and `npm run build`. Market-data pull requests should contain only the dataset change and exclude receipts, purchase data and personal information. Only include data you have the right to share under the repository's 0BSD license.
 
 ### Languages
 
@@ -89,16 +87,6 @@ Build the static app and preview it locally:
 npm run build
 npm run preview
 ```
-
-The optional market observation API has separate commands:
-
-```sh
-npm run dev:api
-npm run build:api
-npm run start:api
-```
-
-See the [self-hosting guide](docs/market-contribution-api.md) for configuration.
 
 ## Testing
 
@@ -149,13 +137,12 @@ For a clean corpus, investigate non-zero values for `failed`, `receiptsWithoutIt
 ## Project structure
 
 ```text
-api/                    Optional market observation API
-docs/                   Maintainer and self-hosting documentation
-scripts/                Validation, audit, import, and review tools
+docs/                   Feature documentation
+scripts/                Dataset validation, receipt audit, and fixture tools
 src/domain/receipts/    Receipt models, parsing, analytics, and market data
 src/features/           Vue feature components
 src/i18n/               German and English translations
-src/services/           PDF, storage, and API integrations
+src/services/           Browser-local PDF, export, and storage integrations
 src/styles/             Shared styles
 tests/fixtures/         Synthetic receipt PDFs
 tests/unit/             Unit and component tests
@@ -168,10 +155,9 @@ tests/e2e/              Playwright tests
 - Persistence is opt-in and uses browser storage.
 - Original PDFs are opened with temporary local URLs.
 - The app has no analytics, tracking pixels, or runtime CDN dependencies.
-- Only market-header text visible in the consent preview can be submitted to the optional contribution service.
 
 ## License
 
 BonBon's original source code and bundled market dataset use the [Zero-Clause BSD (0BSD) License](LICENSE). You may use, copy, modify, and distribute them for any purpose, with or without fee.
 
-The license does not grant rights to third-party material, including receipt contents, trademarks, or data copied from restricted sources. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting market data.
+The license does not grant rights to third-party material, including receipt contents, trademarks, or data copied from restricted sources. Market mappings can be added or corrected through a GitHub pull request as described above.

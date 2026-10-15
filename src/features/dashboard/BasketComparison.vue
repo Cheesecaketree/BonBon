@@ -4,9 +4,8 @@ import { useI18n } from 'vue-i18n'
 import { bestBasketMatches, receiptBaskets, usualBasket } from '../../domain/receipts/basketComparison'
 import type { Receipt } from '../../domain/receipts/types'
 import { getMarketShortName } from '../../domain/receipts/markets'
-import type { LocalMarketMatches } from '../../domain/receipts/marketContributions'
 
-const props = defineProps<{ receipts: Receipt[]; locale: 'de' | 'en'; localMarketMatches: LocalMarketMatches }>()
+const props = defineProps<{ receipts: Receipt[]; locale: 'de' | 'en' }>()
 const emit = defineEmits<{ openReceipt: [receipt: Receipt]; openProduct: [name: string] }>()
 const { t } = useI18n()
 const baskets = computed(() => receiptBaskets(props.receipts))
@@ -23,7 +22,7 @@ function money(cents: number) { return currency.value.format(Math.round(cents) /
 function receiptLabel(receipt: Receipt) {
   const [year, month, day] = receipt.localTimestamp.slice(0, 10).split('-').map(Number)
   const date = new Intl.DateTimeFormat(formatLocale.value, { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(year, month - 1, day)))
-  const market = getMarketShortName(receipt.marketId, t('market'), props.localMarketMatches)
+  const market = getMarketShortName(receipt.marketId, t('market'))
   return `${date} · ${receipt.localTimestamp.slice(11, 16)} · ${market} · #${receipt.receiptNumber} · ${money(receipt.totalCents)}`
 }
 </script>

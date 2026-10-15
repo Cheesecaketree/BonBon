@@ -1,38 +1,11 @@
-import { resolve } from 'node:path'
-import {
-  classifyContribution,
-  datasetPath,
-  formatClassification,
-  formatConflicts,
-  loadContribution,
-  loadDataset,
-} from './market_data_tools.mjs'
-
-function usage() {
-  return [
-    'Usage:',
-    '  npm run validate:markets',
-    '  npm run validate:contribution -- <contribution.json>',
-  ].join('\n')
-}
+import { readFile } from 'node:fs/promises'
+import { marketDatasetSchema } from '../src/domain/receipts/marketSchema.ts'
 
 async function main() {
-  const [mode, input, ...extra] = process.argv.slice(2)
-  if (!['dataset', 'contribution'].includes(mode) || extra.length || (mode === 'dataset' && input) || (mode === 'contribution' && !input)) {
-    throw new Error(usage())
-  }
-
-  const dataset = await loadDataset(datasetPath)
-  console.log(`Validated ${dataset.markets.length} markets in the shared dataset.`)
-  if (mode === 'dataset') return
-
-  const contribution = await loadContribution(resolve(process.cwd(), input))
-  const classification = classifyContribution(dataset, contribution)
-  if (classification.conflicts.length) throw new Error(formatConflicts(classification.conflicts))
-
-  console.log(`Validated ${contribution.markets.length} contributed market mapping(s).`)
-  console.log(formatClassification(classification))
-  console.log('No files were changed.')
+  const source = await readFile(new URL('../src/domain/receipts/known-markets.json', import.meta.url), 'utf8')
+  const result = marketDatasetSchema.safeParse(JSON.parse(source))
+  if (!result.success) throw new Error(result.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('\n'))
+  console.log(`Validated ${result.data.markets.length} markets in the bundled dataset.`)
 }
 
 main().catch((error) => {
