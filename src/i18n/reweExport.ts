@@ -1,7 +1,10 @@
 import { englishExportDetails, germanExportDetails } from './reweExportDetails'
+import { englishExportExplorer, englishExportInsights, germanExportExplorer, germanExportInsights } from './reweExportInsights'
 
 export const germanReweExport = {
   ...germanExportDetails,
+  insights: germanExportInsights,
+  ...germanExportExplorer,
   sourceColumn: 'Spalte {column}', tableScroll: 'Datentabelle, bei Bedarf horizontal scrollen',
   receiptNumber: 'Bonnummer', cancelled: 'Storniert', clearReceipts: 'Kassenbons löschen', clearReceiptsConfirm: 'Alle importierten und gespeicherten Kassenbons löschen? Dein REWE-Datenexport bleibt erhalten.',
   flows: 'Datenquelle', receipts: 'Kassenbons', accountExport: 'REWE-Datenexport',
@@ -24,7 +27,7 @@ export const germanReweExport = {
   multiple: 'Keine Tage mit mehreren Bons | 1 Tag mit mehreren Bons | {count} Tage mit mehreren Bons', missingDays: 'Keine Bontage ohne Artikelpositionen | 1 Bontag ohne Artikelpositionen | {count} Bontage ohne Artikelpositionen', coverageCopy: 'Die Bonliste ist eine separate Tabelle. Bonnummern und Uhrzeiten sind nicht mit den Artikelpositionen verknüpft.',
   missingDates: 'Bontage ohne Artikel', multipleDates: 'Tage mit mehreren Bons', noPurchases: 'Für diese Auswahl sind keine Artikelpositionen vorhanden.',
   productsTitle: 'Deine Stammprodukte', productsCopy: 'Gleiche Artikelbezeichnungen und Einheiten werden zusammengefasst. Mengen beziehen sich auf Packungen oder die erkennbare Gewichtseinheit.',
-  search: 'Produkte suchen', sort: 'Sortierung', sortSpend: 'Nach Artikelbeträgen', sortDays: 'Nach Einkaufstagen', sortName: 'Nach Name',
+  search: 'Produkte suchen', sort: 'Sortierung', sortSpend: 'Nach Artikelbeträgen', sortDays: 'Nach Einkaufstagen', sortQuantity: 'Nach gekaufter Menge', sortName: 'Nach Name',
   product: 'Artikel', quantity: 'Menge', unitPrice: 'Ø Preis je Einheit', minPrice: 'Min.-Preis', maxPrice: 'Max.-Preis', noProducts: 'Keine passenden Produkte gefunden.',
   productHistory: 'Preis- und Kaufverlauf', quantityUnknown: 'Exportmenge; Einheit nicht eindeutig', unit: { item: 'Packung / Stück', kg: 'kg', l: 'l', unknown: 'Exportmenge' },
   date: 'Tag', amountColumn: 'Betrag', source: 'Herkunft', provenance: '{file} · Tabelle {table} · Zeile {row}', showMore: 'Mehr anzeigen',
@@ -61,6 +64,8 @@ export const germanReweExport = {
 
 export const englishReweExport = {
   ...englishExportDetails,
+  insights: englishExportInsights,
+  ...englishExportExplorer,
   sourceColumn: 'column {column}', tableScroll: 'Data table; scroll horizontally if needed',
   receiptNumber: 'Receipt number', cancelled: 'Cancelled', clearReceipts: 'Delete receipts', clearReceiptsConfirm: 'Delete all imported and saved receipts? Your REWE account export is kept.',
   flows: 'Data source', receipts: 'Receipts', accountExport: 'REWE account export',
@@ -82,7 +87,7 @@ export const englishReweExport = {
   multiple: 'No days with multiple receipts | 1 day with multiple receipts | {count} days with multiple receipts', missingDays: 'No receipt days without item rows | 1 receipt day without item rows | {count} receipt days without item rows', coverageCopy: 'The receipt index is a separate table. Receipt numbers and times are not linked to item rows.',
   missingDates: 'Receipt days without items', multipleDates: 'Days with multiple receipts', noPurchases: 'No item rows are available for this selection.',
   productsTitle: 'Your recurring products', productsCopy: 'Identical product labels and units are grouped together. Quantities refer to packs or identifiable weight units.',
-  search: 'Search products', sort: 'Sort order', sortSpend: 'By item amounts', sortDays: 'By shopping days', sortName: 'By name',
+  search: 'Search products', sort: 'Sort order', sortSpend: 'By item amounts', sortDays: 'By shopping days', sortQuantity: 'By quantity bought', sortName: 'By name',
   product: 'Item', quantity: 'Quantity', unitPrice: 'Avg. price per unit', minPrice: 'Min. price', maxPrice: 'Max. price', noProducts: 'No matching products found.',
   productHistory: 'Price and purchase history', quantityUnknown: 'Export quantity; unit unclear', unit: { item: 'pack / piece', kg: 'kg', l: 'l', unknown: 'export quantity' },
   date: 'Day', amountColumn: 'Amount', source: 'Source', provenance: '{file} · table {table} · row {row}', showMore: 'Show more',

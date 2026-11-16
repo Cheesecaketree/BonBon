@@ -6,6 +6,7 @@ import { exportProfileCards, profileValueFormat, profileValueToken } from '../..
 import { emptyReweExport } from '../../src/domain/receipts/reweExport/schema'
 import { readExportHtml } from '../../src/services/reweExport/importHtml'
 import { i18n } from '../../src/i18n'
+import { navigateExport, resetExportRoute } from '../../src/features/reweExport/navigation'
 
 function data() {
   const data = emptyReweExport()
@@ -38,8 +39,9 @@ describe('export profile presentation', () => {
   it('translates literal known values, keeps labels close to the source and omits card explanations', async () => {
     i18n.global.locale.value = 'en'
     const snapshot = data()
+    resetExportRoute()
+    navigateExport({ view: 'profile' }, { replace: true })
     const wrapper = mount(ExportDashboard, { props: { data: snapshot }, global: { plugins: [i18n], stubs: { ChartCard: true } } })
-    await wrapper.get('#export-tab-profile').trigger('click')
     const cards = wrapper.get('.export-profile-section').text()
     expect(cards).toContain('Quality conscious')
     expect(wrapper.findAll('.export-profile-section').map((section) => section.text()).join(' ')).toContain('35–49 years')
@@ -66,8 +68,9 @@ describe('export profile presentation', () => {
     const snapshot = data()
     snapshot.facts.find((fact) => fact.field === 'PREISBEWUSSTSEIN')!.value = 'Neue Preisbewusstseinsklasse'
     i18n.global.locale.value = 'de'
+    resetExportRoute()
+    navigateExport({ view: 'profile' }, { replace: true })
     const wrapper = mount(ExportDashboard, { props: { data: snapshot }, global: { plugins: [i18n], stubs: { ChartCard: true } } })
-    await wrapper.get('#export-tab-profile').trigger('click')
     expect(wrapper.get('#export-panel-profile').text()).toContain('qualitaetsbewusst')
     i18n.global.locale.value = 'en'
     await wrapper.vm.$nextTick()

@@ -1,39 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { parseReweExportBackup, type ReweExport } from '../../domain/receipts/reweExport/schema'
 import { importExportFiles } from '../../services/reweExport/importHtml'
 import { clearAccountExport, downloadAccountExport, loadAccountExport, saveAccountExport } from '../../services/reweExport/storage'
 import { filesFromDataTransfer } from '../../services/pdf/collectFiles'
 import ExportDashboard from './ExportDashboard.vue'
-import ExportOverview from './ExportOverview.vue'
-import ExportNavigation from './ExportNavigation.vue'
-import type { ExportAnalysisView, ExportView } from './navigation'
+import { useExportRoute } from './navigation'
 
 const { t } = useI18n()
 const data = ref<ReweExport | null>(null)
-const analysis = ref(false)
-const analysisTab = ref<ExportAnalysisView>('purchases')
-function selectView(view: ExportView) {
-  if (view === 'overview') {
-    void openProfile()
-  } else {
-    analysisTab.value = view
-    analysis.value = true
-  }
-}
-const backToProfile = ref<HTMLButtonElement>()
-const overviewRoot = ref<HTMLElement>()
-async function openAnalysis() {
-  analysis.value = true
-  await nextTick()
-  backToProfile.value?.focus()
-}
-async function openProfile() {
-  analysis.value = false
-  await nextTick()
-  overviewRoot.value?.focus()
-}
+const { reset: resetRoute } = useExportRoute()
 const processing = ref(false)
 const loading = ref(true)
 const done = ref(0)
@@ -57,9 +34,8 @@ onMounted(async () => {
 
 async function acceptSnapshot(snapshot: ReweExport) {
   data.value = snapshot
-  analysis.value = false
-  analysisTab.value = 'purchases'
   replacing.value = false
+  resetRoute()
   if (saved.value) {
     try { await saveAccountExport(snapshot) }
     catch {
@@ -174,15 +150,7 @@ async function clearSnapshot() {
       </section>
     </template>
     <template v-else>
-      <div class="export-view-navigation"><ExportNavigation :active="analysis ? analysisTab : 'overview'" @select="selectView" /></div>
-      <section v-if="!analysis" id="export-panel-overview" role="tabpanel" aria-labelledby="export-tab-overview" ref="overviewRoot" class="export-overview-page" tabindex="-1" :aria-label="t('reweExport.overview.title')">
-        <ExportOverview :data="data" />
-        <div class="export-overview-actions"><button class="button primary" type="button" @click="openAnalysis">{{ t('reweExport.overview.explore') }} <span aria-hidden="true">→</span></button></div>
-      </section>
-      <div v-show="analysis" class="export-analysis-shell">
-        <div class="export-analysis-navigation"><button ref="backToProfile" class="button secondary" type="button" @click="openProfile"><span aria-hidden="true">←</span> {{ t('reweExport.overview.back') }}</button></div>
-        <ExportDashboard :key="data.importedAt" :data="data" :view="analysisTab" :hide-tabs="true" />
-      </div>
+      <ExportDashboard :key="data.importedAt" :data="data" />
       <section class="export-controls privacy-card">
         <div><p class="eyebrow">{{ t('dataControls') }}</p><h2>{{ t('reweExport.dataControls') }}</h2><p>{{ t('reweExport.controlsCopy') }}</p></div>
         <div class="utility-actions">
