@@ -69,8 +69,9 @@ describe('export insights', () => {
     expect(insights.trips?.largest).toMatchObject({ date: '2025-07-22', cents: 4119 })
     expect(insights.typical?.highest.month).toBe('2025-07')
 
-    expect(insights.priceChanges.rising[0]).toMatchObject({ name: 'COFFEE', firstPriceCents: 610, lastPriceCents: 720 })
-    expect(insights.priceChanges.rising[0]!.change).toBeCloseTo(110 / 610)
+    // Regular price = highest price in the first and last third of the history (Jan–Apr vs. Sep–Dec).
+    expect(insights.priceChanges.rising[0]).toMatchObject({ name: 'COFFEE', firstPriceCents: 640, lastPriceCents: 720 })
+    expect(insights.priceChanges.rising[0]!.change).toBeCloseTo(80 / 640)
     expect(insights.priceChanges.falling).toEqual([])
 
     expect(insights.newProducts.map((product) => product.name)).toEqual(['NEW TEA'])
@@ -78,6 +79,23 @@ describe('export insights', () => {
     expect(insights.deposits).toEqual({ paidCents: 25, returnedCents: 50 })
     expect(insights.trend).not.toBeNull()
     expect(insights.years).toEqual([{ year: '2025', cents: expect.any(Number), months: 12, monthlyCents: expect.any(Number), trips: 49 }])
+  })
+
+  it('ignores offers when comparing prices', () => {
+    const offers = (name: string, prices: number[]) => prices.map((cents, index) => row(`2025-${String(index + 1).padStart(2, '0')}-10`, name, cents))
+    const insights = exportInsights([
+      // Stable shelf price of 1.99 €, but on offer exactly at the first and last purchase.
+      ...offers('STABLE', [149, 199, 199, 199, 199, 199, 199, 199, 199, 199, 149]),
+      // Real increase from 1.99 € to 2.29 €, with offers mixed in on both ends.
+      ...offers('RISING', [149, 199, 199, 199, 199, 229, 229, 229, 179, 229, 149]),
+      // Permanently cheaper from June.
+      ...offers('CHEAPER', [299, 299, 299, 299, 299, 249, 249, 249, 249, 249, 249]),
+      // A single purchase in the last third cannot establish a regular price.
+      ...offers('SPARSE', [199, 199, 199, 199]), row('2025-11-10', 'SPARSE', 99),
+    ])
+    expect(insights.priceChanges.rising.map((entry) => [entry.name, entry.firstPriceCents, entry.lastPriceCents])).toEqual([['RISING', 199, 229]])
+    expect(insights.priceChanges.falling.map((entry) => [entry.name, entry.firstPriceCents, entry.lastPriceCents])).toEqual([['CHEAPER', 299, 249]])
+    expect(insights.priceChanges.tracked).toBe(3)
   })
 
   it('counts weekdays from trips and stays quiet with too little history', () => {
