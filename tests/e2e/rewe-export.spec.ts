@@ -8,6 +8,9 @@ async function importExport(page: import('@playwright/test').Page) {
   await expect(page.locator('.export-overview')).toBeVisible()
   await page.getByRole('button', { name: 'Daten erkunden', exact: true }).click()
   await expect(page.locator('.export-dashboard')).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Auswertung', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('#export-panel-insights')).toBeVisible()
+  await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
 }
 
 test('explores a separate export without changing PDF data and retains it across flow switches', async ({ page }, testInfo) => {
@@ -61,6 +64,7 @@ test('replaces snapshots, preserves a good import after failure, and saves and d
   await page.reload()
   await expect(page.locator('.export-overview')).toContainText('6,55')
   await page.getByRole('button', { name: 'Daten erkunden', exact: true }).click()
+  await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
   await expect(page.locator('.export-dashboard .primary-stats')).toContainText('6,55')
   await page.getByRole('button', { name: 'Auszug ersetzen', exact: true }).click()
   await page.locator('[data-export-files]').setInputFiles({ name: 'invalid.html', mimeType: 'text/html', buffer: Buffer.from('<script>throw new Error("should never execute")</script><img src="https://example.invalid/track">') })
@@ -77,6 +81,7 @@ test('replaces snapshots, preserves a good import after failure, and saves and d
   await page.locator('[data-export-backup]').setInputFiles(backup!)
   await expect(page.locator('.export-overview')).toContainText('6,55')
   await page.getByRole('button', { name: 'Daten erkunden', exact: true }).click()
+  await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
   await expect(page.locator('.export-dashboard .primary-stats')).toContainText('6,55')
   await page.getByRole('button', { name: 'Kassenbons', exact: true }).click()
   await expect(page.locator('.rewe-export-flow')).toBeHidden()
@@ -217,7 +222,8 @@ test('starts with a shareable overview and preserves independent analysis filter
   await page.locator('[data-export-files]').setInputFiles(fixtureFiles)
   await expect(poster).toBeVisible()
   await page.getByRole('button', { name: 'Daten erkunden', exact: true }).click()
-  await expect(page.getByRole('tab', { name: 'Einkäufe', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.getByRole('tab', { name: 'Auswertung', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
   await expect(page.locator('.primary-stats')).toContainText('6,55')
 })
 

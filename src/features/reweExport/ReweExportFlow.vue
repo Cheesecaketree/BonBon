@@ -13,7 +13,7 @@ import type { ExportAnalysisView, ExportView } from './navigation'
 const { t } = useI18n()
 const data = ref<ReweExport | null>(null)
 const analysis = ref(false)
-const analysisTab = ref<ExportAnalysisView>('purchases')
+const analysisTab = ref<ExportAnalysisView>('insights')
 function selectView(view: ExportView) {
   if (view === 'overview') {
     void openProfile()
@@ -58,7 +58,7 @@ onMounted(async () => {
 async function acceptSnapshot(snapshot: ReweExport) {
   data.value = snapshot
   analysis.value = false
-  analysisTab.value = 'purchases'
+  analysisTab.value = 'insights'
   replacing.value = false
   if (saved.value) {
     try { await saveAccountExport(snapshot) }

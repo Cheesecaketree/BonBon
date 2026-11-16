@@ -5,6 +5,7 @@ import type { EChartsOption } from 'echarts'
 import ChartCard from '../dashboard/ChartCard.vue'
 import ExportProductHistory from './ExportProductHistory.vue'
 import ExportDateRangePicker from './ExportDateRange.vue'
+import ExportInsights from './ExportInsights.vue'
 import type { ExportAnalysisView as View } from './navigation'
 import { inExportRange, type ExportDateRange } from '../../domain/receipts/reweExport/dateRange'
 import { exportProfileCards, profileValueFormat, profileValueToken } from '../../domain/receipts/reweExport/profile'
@@ -25,7 +26,7 @@ const activityLimit = ref(20)
 const currency = computed(() => new Intl.NumberFormat(locale.value === 'de' ? 'de-DE' : 'en-GB', { style: 'currency', currency: 'EUR' }))
 const decimal = computed(() => new Intl.NumberFormat(locale.value === 'de' ? 'de-DE' : 'en-GB', { maximumFractionDigits: 3 }))
 const percent = computed(() => new Intl.NumberFormat(locale.value === 'de' ? 'de-DE' : 'en-GB', { style: 'percent', maximumFractionDigits: 1 }))
-const tabs = computed(() => (['purchases', 'products', 'bonus', 'profile', 'activity'] as View[]).map((id) => ({ id, label: t(`reweExport.${id}Tab`) })))
+const tabs = computed(() => (['insights', 'purchases', 'products', 'bonus', 'profile', 'activity'] as View[]).map((id) => ({ id, label: t(id === 'insights' ? 'reweExport.insights.tab' : `reweExport.${id}Tab`) })))
 const markets = computed(() => [...new Set(props.data.purchases.map((row) => row.market))].sort())
 const rows = computed(() => exportPurchases(props.data, 'all', market.value, range.value))
 const summary = computed(() => exportSummary(rows.value))
@@ -196,12 +197,14 @@ const activityOption = computed(() => chart(activityMonths.value.map(([month]) =
     <nav v-if="!hideTabs" class="analytics-tabs" role="tablist" :aria-label="t('analyticsViews')">
       <button v-for="(tab, index) in tabs" :id="`export-tab-${tab.id}`" :key="tab.id" type="button" role="tab" :aria-selected="active === tab.id" :aria-controls="`export-panel-${tab.id}`" :tabindex="active === tab.id ? 0 : -1" @click="switchTab(tab.id)" @keydown="tabKeys($event, index)">{{ tab.label }}</button>
     </nav>
-    <div v-if="['purchases', 'products', 'bonus'].includes(active)" class="export-filters export-main-filters">
+    <div v-if="['insights', 'purchases', 'products', 'bonus'].includes(active)" class="export-filters export-main-filters">
       <ExportDateRangePicker v-model="range" :data-dates="calendarDates" :metadata-dates="market || active === 'bonus' ? [] : metadataDates" :data-label="active === 'bonus' ? t('reweExport.calendarBonus') : undefined" />
       <label v-if="active !== 'bonus'">{{ t('reweExport.market') }}<select v-model="market"><option value="">{{ t('reweExport.allMarkets') }}</option><option v-for="value in markets" :key="value">{{ value }}</option></select></label>
     </div>
 
-    <section v-if="active === 'purchases'" id="export-panel-purchases" role="tabpanel" aria-labelledby="export-tab-purchases">
+    <ExportInsights v-if="active === 'insights'" :rows="rows" />
+
+    <section v-else-if="active === 'purchases'" id="export-panel-purchases" role="tabpanel" aria-labelledby="export-tab-purchases">
       <section class="stat-grid primary-stats">
         <article><span>{{ t('reweExport.amount') }}</span><strong>{{ money(summary.totalCents) }}</strong></article>
         <article><span>{{ t('reweExport.days') }}</span><strong>{{ number(summary.days) }}</strong></article>

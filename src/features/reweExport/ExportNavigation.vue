@@ -6,7 +6,7 @@ import type { ExportView } from './navigation'
 const props = defineProps<{ active: ExportView }>()
 const emit = defineEmits<{ select: [view: ExportView] }>()
 const { t } = useI18n()
-const views: ExportView[] = ['overview', 'purchases', 'products', 'bonus', 'profile', 'activity']
+const views: ExportView[] = ['overview', 'insights', 'purchases', 'products', 'bonus', 'profile', 'activity']
 function keys(event: KeyboardEvent, index: number) {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
   event.preventDefault()
@@ -19,6 +19,6 @@ function keys(event: KeyboardEvent, index: number) {
 
 <template>
   <nav class="analytics-tabs" role="tablist" :aria-label="t('analyticsViews')">
-    <button v-for="(view, index) in views" :id="`export-tab-${view}`" :key="view" type="button" role="tab" :aria-selected="props.active === view" :aria-controls="`export-panel-${view}`" :tabindex="props.active === view ? 0 : -1" @click="emit('select', view)" @keydown="keys($event, index)">{{ t(view === 'overview' ? 'reweExport.overview.tab' : `reweExport.${view}Tab`) }}</button>
+    <button v-for="(view, index) in views" :id="`export-tab-${view}`" :key="view" type="button" role="tab" :aria-selected="props.active === view" :aria-controls="`export-panel-${view}`" :tabindex="props.active === view ? 0 : -1" @click="emit('select', view)" @keydown="keys($event, index)">{{ t(view === 'overview' ? 'reweExport.overview.tab' : view === 'insights' ? 'reweExport.insights.tab' : `reweExport.${view}Tab`) }}</button>
   </nav>
 </template>

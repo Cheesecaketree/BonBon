@@ -18,7 +18,7 @@ describe('account export dashboard', () => {
 
   it('labels day aggregates and keeps receipt metadata in the data without displaying it', async () => {
     const wrapper = render()
-    expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual(['Einkäufe', 'Produkte', 'Bonus', 'REWEs Bild von dir', 'Datenspuren'])
+    expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual(['Auswertung', 'Einkäufe', 'Produkte', 'Bonus', 'REWEs Bild von dir', 'Datenspuren'])
     expect(wrapper.find('.primary-stats').text()).toContain('Artikelbeträge6,55')
     expect(wrapper.find('.primary-stats').text()).toContain('Einkaufstage3')
     const receiptIndex = JSON.stringify(wrapper.props('data').receiptIndex)
@@ -37,7 +37,7 @@ describe('account export dashboard', () => {
 
   it('explores unit-aware product prices while preserving individual row history', async () => {
     const wrapper = render()
-    await wrapper.findAll('[role=tab]')[1]!.trigger('click')
+    await wrapper.findAll('[role=tab]')[2]!.trigger('click')
     await wrapper.get('input[type=search]').setValue('BOLOGNESE')
     expect(wrapper.findAll('#export-panel-products > .export-table-scroll tbody tr')).toHaveLength(1)
     await wrapper.get('.export-table button').trigger('click')
@@ -58,10 +58,10 @@ describe('account export dashboard', () => {
 
   it('explains bonus reconciliation and model estimates', async () => {
     const wrapper = render()
-    await wrapper.findAll('[role=tab]')[2]!.trigger('click')
+    await wrapper.findAll('[role=tab]')[3]!.trigger('click')
     expect(wrapper.text()).toContain('0,30')
     expect(wrapper.text()).toContain('Ein Anfangsguthaben')
-    await wrapper.findAll('[role=tab]')[3]!.trigger('click')
+    await wrapper.findAll('[role=tab]')[4]!.trigger('click')
     expect(wrapper.text()).toContain('42,5')
     expect(wrapper.text()).toContain('Diese Angaben stammen aus deinem REWE-Datenexport')
     expect(wrapper.findAll('.export-profile-card p')).toHaveLength(0)
@@ -87,7 +87,7 @@ describe('account export dashboard', () => {
     const data = wrapper.props('data')
     data.purchases[0]!.name = '<img src=x onerror=alert(1)>'
     await wrapper.setProps({ data: { ...data } })
-    await wrapper.findAll('[role=tab]')[1]!.trigger('click')
+    await wrapper.findAll('[role=tab]')[2]!.trigger('click')
     expect(wrapper.text()).toContain('<img src=x onerror=alert(1)>')
     expect(wrapper.find('img').exists()).toBe(false)
     i18n.global.locale.value = 'en'

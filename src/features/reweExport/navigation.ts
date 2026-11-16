@@ -1,2 +1,2 @@
-export type ExportAnalysisView = 'purchases' | 'products' | 'bonus' | 'profile' | 'activity'
+export type ExportAnalysisView = 'insights' | 'purchases' | 'products' | 'bonus' | 'profile' | 'activity'
 export type ExportView = 'overview' | ExportAnalysisView
