@@ -24,6 +24,7 @@ export interface InsightRange { median: number; low: number; high: number }
 export interface TypicalMonth {
   months: number
   excludedPartial: number
+  emptyMonths: number
   cents: InsightRange
   days: InsightRange
   trips: InsightRange
@@ -142,10 +143,15 @@ export function insightMonths(rows: ExportPurchase[]): InsightMonth[] {
   return result
 }
 
-/** Months used for "typical" values: complete months when at least three exist, otherwise every month. */
+/**
+ * Months used for "typical" values: months with at least one trip, and of those only complete months
+ * when at least three exist. Months without purchases (holidays, gaps in the export) would otherwise
+ * pull the median towards zero.
+ */
 function typicalMonths(months: InsightMonth[]) {
-  const complete = months.filter((month) => !month.partial)
-  return complete.length >= 3 ? complete : months
+  const active = months.filter((month) => month.trips > 0)
+  const complete = active.filter((month) => !month.partial)
+  return complete.length >= 3 ? complete : active
 }
 
 export function typicalMonth(months: InsightMonth[]): TypicalMonth | null {
@@ -155,7 +161,8 @@ export function typicalMonth(months: InsightMonth[]): TypicalMonth | null {
   const byCents = [...considered].sort((a, b) => a.cents - b.cents || a.month.localeCompare(b.month))
   return {
     months: considered.length,
-    excludedPartial: months.length - considered.length,
+    excludedPartial: months.filter((month) => month.trips > 0).length - considered.length,
+    emptyMonths: months.filter((month) => month.trips === 0).length,
     cents: insightRange(considered.map((month) => month.cents)),
     days: insightRange(considered.map((month) => month.days), false),
     trips: insightRange(considered.map((month) => month.trips), false),

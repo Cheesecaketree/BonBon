@@ -5,12 +5,20 @@ const fixtureFiles = ['purchases', 'receipts-and-consents', 'profile-and-activit
 
 async function importExport(page: import('@playwright/test').Page) {
   await page.locator('[data-export-files]').setInputFiles(fixtureFiles)
-  await expect(page.locator('.export-overview')).toBeVisible()
-  await page.getByRole('button', { name: 'Daten erkunden', exact: true }).click()
-  await expect(page.locator('.export-dashboard')).toBeVisible()
-  await expect(page.getByRole('tab', { name: 'Auswertung', exact: true })).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('#export-panel-insights')).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Auswertung', exact: true })).toHaveAttribute('aria-selected', 'true')
   await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
+}
+
+function area(page: import('@playwright/test').Page, name: string) {
+  return page.locator('.export-areas').getByRole('button', { name: new RegExp(`^${name}`) })
+}
+
+async function expectNoOverflow(page: import('@playwright/test').Page) {
+  for (const width of [320, 390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1)
+  }
 }
 
 test('explores a separate export without changing PDF data and retains it across flow switches', async ({ page }, testInfo) => {
@@ -36,23 +44,24 @@ test('explores a separate export without changing PDF data and retains it across
   await expect(page.locator('.export-product-history tbody tr')).toHaveCount(3)
   await page.getByRole('tab', { name: 'Bonus', exact: true }).click()
   await expect(page.locator('#export-panel-bonus')).toContainText('0,30')
-  await page.getByRole('tab', { name: 'REWEs Bild von dir', exact: true }).click()
+  await area(page, 'Was REWE weiß').click()
+  await expect(page.locator('#export-panel-summary')).toBeVisible()
+  await page.getByRole('tab', { name: 'Profil & Einwilligungen', exact: true }).click()
   await expect(page.locator('#export-panel-profile')).toContainText('42,5')
   await page.getByRole('tab', { name: 'Datenspuren', exact: true }).click()
   await expect(page.locator('#export-panel-activity')).toContainText('Pixel 9 Pro')
-  for (const width of [320, 390, 768, 1280]) {
-    await page.setViewportSize({ width, height: 900 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1)
-  }
+  await expectNoOverflow(page)
   await page.getByRole('button', { name: 'Kassenbons', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Einkaufsjahr im Überblick' })).toBeVisible()
   await expect(page.locator('.primary-stats:visible')).toContainText('12,34')
   await page.getByRole('button', { name: 'REWE-Datenexport', exact: true }).click()
-  await expect(page.locator('.export-dashboard')).toBeVisible()
+  await expect(page).toHaveURL(/#\/rewe-export\/rewe\/activity(\?|$)/)
+  await expect(page.locator('#export-panel-activity')).toBeVisible()
+  await area(page, 'Dein Einkauf').click()
   await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
   await expect(page.locator('.export-dashboard .primary-stats')).toContainText('6,55')
   await page.getByRole('button', { name: 'EN', exact: true }).click()
-  await expect(page.getByRole('tab', { name: 'REWE’s view of you' })).toBeVisible()
+  await expect(area(page, 'What REWE knows')).toBeVisible()
   expect(errors).toEqual([])
 })
 
@@ -62,9 +71,7 @@ test('replaces snapshots, preserves a good import after failure, and saves and d
   await page.getByRole('switch', { name: 'Auszug auf diesem Gerät speichern', exact: true }).click()
   await expect(page.getByRole('switch')).toHaveAttribute('aria-checked', 'true')
   await page.reload()
-  await expect(page.locator('.export-overview')).toContainText('6,55')
-  await page.getByRole('button', { name: 'Daten erkunden', exact: true }).click()
-  await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
+  await expect(page.getByRole('tab', { name: 'Einkäufe', exact: true })).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.export-dashboard .primary-stats')).toContainText('6,55')
   await page.getByRole('button', { name: 'Auszug ersetzen', exact: true }).click()
   await page.locator('[data-export-files]').setInputFiles({ name: 'invalid.html', mimeType: 'text/html', buffer: Buffer.from('<script>throw new Error("should never execute")</script><img src="https://example.invalid/track">') })
@@ -79,8 +86,7 @@ test('replaces snapshots, preserves a good import after failure, and saves and d
   const backup = await download.path()
   expect(backup).toBeTruthy()
   await page.locator('[data-export-backup]').setInputFiles(backup!)
-  await expect(page.locator('.export-overview')).toContainText('6,55')
-  await page.getByRole('button', { name: 'Daten erkunden', exact: true }).click()
+  await expect(page.locator('#export-panel-insights')).toBeVisible()
   await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
   await expect(page.locator('.export-dashboard .primary-stats')).toContainText('6,55')
   await page.getByRole('button', { name: 'Kassenbons', exact: true }).click()
@@ -123,10 +129,7 @@ test('filters date ranges with data markers and presets, and shows unit price ra
   await page.keyboard.press('Enter')
   await expect(page.locator('.primary-stats')).toContainText('1,79')
   await page.locator('.export-dashboard').screenshot({ path: `/private/tmp/bonbon-export-range-${testInfo.project.name}.png` })
-  for (const width of [320, 390, 768, 1280]) {
-    await page.setViewportSize({ width, height: 900 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1)
-  }
+  await expectNoOverflow(page)
   await picker.getByRole('button', { name: 'Alle Daten', exact: true }).click()
   await page.getByRole('tab', { name: 'Produkte', exact: true }).click()
   await page.getByRole('searchbox').fill('BOLOGNESE')
@@ -136,10 +139,7 @@ test('filters date ranges with data markers and presets, and shows unit price ra
   await expect(page.locator('.export-product-rows')).not.toHaveAttribute('open')
   await page.locator('.export-product-history .metric-toggle button').filter({ hasText: 'Einkaufstage' }).click()
   await expect(page.locator('.export-product-history .metric-toggle button').filter({ hasText: 'Einkaufstage' })).toHaveAttribute('aria-pressed', 'true')
-  for (const width of [320, 390, 768, 1280]) {
-    await page.setViewportSize({ width, height: 900 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1)
-  }
+  await expectNoOverflow(page)
   await page.setViewportSize(testInfo.project.use.viewport ?? { width: 1280, height: 900 })
   await page.locator('.export-product-history').screenshot({ path: `/private/tmp/bonbon-product-timeline-${testInfo.project.name}.png` })
   await page.locator('.export-product-rows summary').click()
@@ -151,7 +151,8 @@ test('explains translated profile values and keeps unnamed interest rows and ori
   await page.goto('/#/rewe-export')
   await importExport(page)
   await page.getByRole('button', { name: 'EN', exact: true }).click()
-  await page.getByRole('tab', { name: 'REWE’s view of you', exact: true }).click()
+  await area(page, 'What REWE knows').click()
+  await page.getByRole('tab', { name: 'Profile & consents', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Your shopping preferences', exact: true })).toBeVisible()
   await expect(page.getByText('Multiple-person household', { exact: true })).toBeVisible()
   await expect(page.getByText('35–49 years', { exact: true })).toBeVisible()
@@ -166,81 +167,88 @@ test('explains translated profile values and keeps unnamed interest rows and ori
   await expect(page.locator('.export-interests th')).toHaveCount(2)
   await expect(page.locator('.export-consents')).toContainText('Earlier marketing consent (V2) · Email')
   await page.locator('.export-dashboard').screenshot({ path: `/private/tmp/bonbon-export-profile-${testInfo.project.name}.png` })
-  for (const width of [320, 390, 768, 1280]) {
-    await page.setViewportSize({ width, height: 900 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1)
-  }
+  await expectNoOverflow(page)
 })
 
-test('starts with a shareable overview and preserves independent analysis filters and tabs', async ({ page }, testInfo) => {
+test('starts on insights, drills into details with working back navigation, and shares a summary image', async ({ page }, testInfo) => {
   await page.clock.install({ time: new Date('2026-10-12T12:00:00Z') })
   await page.goto('/#/rewe-export')
   await page.locator('[data-export-files]').setInputFiles(fixtureFiles)
-  const poster = page.locator('.export-overview')
-  await expect(poster).toBeVisible()
-  await expect(poster).toContainText('6,55')
-  await expect(poster).toContainText('1,00')
-  await expect(poster).toContainText('4 gespeicherte Interaktionsdatensätze')
-  await expect(page.locator('.export-dashboard')).toBeHidden()
-  await expect(page.getByRole('tab', { name: 'Profil', exact: true })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.getByRole('tab', { name: 'Produkte', exact: true })).toBeVisible()
-  await expect(page.locator('.export-overview-mark')).toHaveCount(0)
+  const insights = page.locator('#export-panel-insights')
+  await expect(insights).toBeVisible()
+  await expect(page).toHaveURL(/#\/rewe-export\/shopping$/)
+  await expect(insights).toContainText('Typischer Monat')
   for (const language of ['DE', 'EN']) {
     await page.getByRole('button', { name: language, exact: true }).click()
-    for (const width of [320, 390, 768, 1280]) {
-      await page.setViewportSize({ width, height: 900 })
-      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1)
-    }
+    await expectNoOverflow(page)
   }
   await page.getByRole('button', { name: 'DE', exact: true }).click()
   await page.setViewportSize(testInfo.project.use.viewport ?? { width: 1280, height: 900 })
-  await poster.screenshot({ path: `/private/tmp/bonbon-overview-${testInfo.project.name}.png` })
-  await page.getByRole('tab', { name: 'Produkte', exact: true }).click()
-  await expect(page.locator('#export-panel-products')).toBeVisible()
-  await page.getByRole('tab', { name: 'Profil', exact: true }).click()
-  await expect(poster).toBeVisible()
-  await page.getByRole('tab', { name: 'Profil', exact: true }).focus()
-  await page.keyboard.press('End')
-  await expect(page.getByRole('tab', { name: 'Datenspuren', exact: true })).toBeFocused()
-  await expect(page.locator('#export-panel-activity')).toBeVisible()
-  await page.keyboard.press('Home')
-  await expect(poster).toBeVisible()
-  await page.getByRole('button', { name: 'Daten erkunden', exact: true }).click()
-  await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
+  await insights.screenshot({ path: `/private/tmp/bonbon-insights-${testInfo.project.name}.png` })
+
+  await insights.getByRole('button', { name: /BOLOGNESE/ }).first().click()
+  await expect(page.getByRole('tab', { name: 'Produkte', exact: true })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('.export-product-history')).toBeVisible()
+  await expect(page).toHaveURL(/product=/)
+  await page.goBack()
+  await expect(insights).toBeVisible()
+
   await page.locator('.export-range-picker summary').click()
   await page.getByRole('button', { name: 'Dieser Monat', exact: true }).click()
+  await expect(page).toHaveURL(/start=2026-10-01/)
+  await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
   await expect(page.locator('.primary-stats')).toContainText('1,79')
   await page.getByRole('tab', { name: 'Produkte', exact: true }).click()
   await page.getByRole('searchbox').fill('BOLOGNESE')
-  await page.getByRole('button', { name: 'Zurück zum Profil', exact: false }).click()
-  await expect(poster).toContainText('6,55')
-  await page.getByRole('button', { name: 'Daten erkunden', exact: true }).click()
+  await expect(page).toHaveURL(/q=BOLOGNESE/)
+  await area(page, 'Was REWE weiß').click()
+  const summary = page.locator('#export-panel-summary')
+  await expect(summary.locator('[data-check="budget"]')).toContainText('Alltagsbudget')
+  await expect(summary.locator('[data-check="market"]')).toContainText('REWE Beispielmarkt')
+  await expectNoOverflow(page)
+  await page.setViewportSize(testInfo.project.use.viewport ?? { width: 1280, height: 900 })
+  await summary.getByRole('button', { name: /Interaktionsdatensätze/ }).click()
+  await expect(page.locator('#export-panel-activity')).toBeVisible()
+  await page.goBack()
+  await expect(summary).toBeVisible()
+  await page.goBack()
   await expect(page.getByRole('tab', { name: 'Produkte', exact: true })).toHaveAttribute('aria-selected', 'true')
   await expect(page.getByRole('searchbox')).toHaveValue('BOLOGNESE')
   await expect(page.locator('.export-range-picker summary')).toContainText('Oktober 2026')
+
+  await page.getByRole('button', { name: 'Zusammenfassung teilen', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Deine Zusammenfassung als Bild' })
+  await expect(dialog.locator('img')).toBeVisible()
+  const size = await dialog.locator('img').evaluate((image: HTMLImageElement) => [image.naturalWidth, image.naturalHeight])
+  expect(size).toEqual([1080, 1350])
+  await dialog.screenshot({ path: `/private/tmp/bonbon-share-${testInfo.project.name}.png` })
+  await dialog.getByLabel('REWEs Einschätzungen zeigen').uncheck()
+  await expect(dialog.locator('img')).toBeVisible()
+  const [download] = await Promise.all([page.waitForEvent('download'), dialog.getByRole('button', { name: 'Bild speichern', exact: true }).click()])
+  expect(download.suggestedFilename()).toBe('bonbon-rewe-summary.png')
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Zusammenfassung teilen', exact: true })).toBeFocused()
+
   await page.getByRole('button', { name: 'Auszug ersetzen', exact: true }).click()
   await page.locator('[data-export-files]').setInputFiles(fixtureFiles)
-  await expect(poster).toBeVisible()
-  await page.getByRole('button', { name: 'Daten erkunden', exact: true }).click()
-  await expect(page.getByRole('tab', { name: 'Auswertung', exact: true })).toHaveAttribute('aria-selected', 'true')
-  await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
-  await expect(page.locator('.primary-stats')).toContainText('6,55')
+  await expect(insights).toBeVisible()
+  await expect(page).toHaveURL(/#\/rewe-export\/shopping$/)
 })
 
-test('keeps long product and assigned-market names readable on the overview', async ({ page }) => {
+test('keeps long product and assigned-market names readable in insights and REWE summary', async ({ page }) => {
   await page.goto('/#/rewe-export')
   const product = 'SYNTHETISCHES PRODUKT MIT LANGER ARTIKELBEZEICHNUNG 500G UND ZUSAETZLICHER VERPACKUNGSANGABE'
   const market = 'REWE Synthetischer Markt mit einer besonders langen Firmenbezeichnung und Adresse in der Beispielstraße 123, 12345 Musterstadt'
   const rows = ['2026-01-01', '2026-01-02'].map((date) => `<tr><td>${market}</td><td>${date}</td><td>${product}</td><td>1.0</td><td>2.00</td></tr>`).join('')
   const html = `<table><tr><th>MARKT</th><th>TAG</th><th>ARTIKEL</th><th>MENGE</th><th>BETRAG</th></tr>${rows}</table><table><tr><th>STAMMMARKT</th><th>RFM_SEGMENT</th></tr><tr><td>${market}</td><td>Unfamiliar synthetic segment</td></tr></table>`
   await page.locator('[data-export-files]').setInputFiles({ name: 'synthetic-long.html', mimeType: 'text/html', buffer: Buffer.from(html) })
-  await expect(page.locator('.export-overview-regular')).toContainText(product)
-  await expect(page.locator('.export-overview-market')).toContainText(market)
+  await expect(page.locator('#export-panel-insights')).toContainText(market)
   for (const language of ['DE', 'EN']) {
     await page.getByRole('button', { name: language, exact: true }).click()
-    for (const width of [320, 390, 768, 1280]) {
-      await page.setViewportSize({ width, height: 900 })
-      expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1)
-    }
+    await expectNoOverflow(page)
   }
+  await area(page, 'What REWE knows').click()
+  await expect(page.locator('[data-check="market"]')).toContainText(market)
+  await expectNoOverflow(page)
 })

@@ -1,9 +1,10 @@
 import { englishExportDetails, germanExportDetails } from './reweExportDetails'
-import { englishExportInsights, germanExportInsights } from './reweExportInsights'
+import { englishExportExplorer, englishExportInsights, germanExportExplorer, germanExportInsights } from './reweExportInsights'
 
 export const germanReweExport = {
   ...germanExportDetails,
   insights: germanExportInsights,
+  ...germanExportExplorer,
   sourceColumn: 'Spalte {column}', tableScroll: 'Datentabelle, bei Bedarf horizontal scrollen',
   receiptNumber: 'Bonnummer', cancelled: 'Storniert', clearReceipts: 'Kassenbons löschen', clearReceiptsConfirm: 'Alle importierten und gespeicherten Kassenbons löschen? Dein REWE-Datenexport bleibt erhalten.',
   flows: 'Datenquelle', receipts: 'Kassenbons', accountExport: 'REWE-Datenexport',
@@ -64,6 +65,7 @@ export const germanReweExport = {
 export const englishReweExport = {
   ...englishExportDetails,
   insights: englishExportInsights,
+  ...englishExportExplorer,
   sourceColumn: 'column {column}', tableScroll: 'Data table; scroll horizontally if needed',
   receiptNumber: 'Receipt number', cancelled: 'Cancelled', clearReceipts: 'Delete receipts', clearReceiptsConfirm: 'Delete all imported and saved receipts? Your REWE account export is kept.',
   flows: 'Data source', receipts: 'Receipts', accountExport: 'REWE account export',

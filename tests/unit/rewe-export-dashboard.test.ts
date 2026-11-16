@@ -6,6 +6,8 @@ import ChartCard from '../../src/features/dashboard/ChartCard.vue'
 import { emptyReweExport } from '../../src/domain/receipts/reweExport/schema'
 import { readExportHtml } from '../../src/services/reweExport/importHtml'
 import { i18n } from '../../src/i18n'
+import { resetExportRoute } from '../../src/features/reweExport/navigation'
+import type { VueWrapper } from '@vue/test-utils'
 
 function render() {
   const data = emptyReweExport()
@@ -13,12 +15,25 @@ function render() {
   return mount(ExportDashboard, { props: { data }, global: { plugins: [i18n], stubs: { ChartCard: true } } })
 }
 
+async function open(wrapper: VueWrapper, name: string) {
+  const target = [...wrapper.findAll('.export-areas button'), ...wrapper.findAll('[role=tab]')].find((button) => button.text().startsWith(name))
+  if (!target) throw new Error(`No navigation entry ${name}`)
+  await target.trigger('click')
+}
+
 describe('account export dashboard', () => {
-  beforeEach(() => { i18n.global.locale.value = 'de' })
+  beforeEach(() => {
+    i18n.global.locale.value = 'de'
+    resetExportRoute()
+  })
 
   it('labels day aggregates and keeps receipt metadata in the data without displaying it', async () => {
     const wrapper = render()
-    expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual(['Auswertung', 'Einkäufe', 'Produkte', 'Bonus', 'REWEs Bild von dir', 'Datenspuren'])
+    expect(wrapper.findAll('.export-areas button').map((button) => button.find('strong').text())).toEqual(['Dein Einkauf', 'Was REWE weiß'])
+    expect(wrapper.findAll('[role="tab"]').map((tab) => tab.text())).toEqual(['Auswertung', 'Einkäufe', 'Produkte', 'Bonus'])
+    expect(wrapper.find('#export-panel-insights').exists()).toBe(true)
+    await open(wrapper, 'Einkäufe')
+    expect(window.location.hash).toBe('#/rewe-export/shopping/purchases')
     expect(wrapper.find('.primary-stats').text()).toContain('Artikelbeträge6,55')
     expect(wrapper.find('.primary-stats').text()).toContain('Einkaufstage3')
     const receiptIndex = JSON.stringify(wrapper.props('data').receiptIndex)
@@ -28,6 +43,7 @@ describe('account export dashboard', () => {
     await wrapper.findAll('input[type=date]')[0]!.setValue('2026-01-01')
     await wrapper.findAll('input[type=date]')[1]!.setValue('2026-12-31')
     expect(wrapper.find('.primary-stats').text()).toContain('5,06')
+    expect(window.location.hash).toBe('#/rewe-export/shopping/purchases?start=2026-01-01&end=2026-12-31')
     await wrapper.findAll('input[type=date]')[0]!.setValue('2026-09-24')
     await wrapper.findAll('input[type=date]')[1]!.setValue('2026-09-24')
     expect(wrapper.findAll('.export-day')).toHaveLength(1)
@@ -37,7 +53,7 @@ describe('account export dashboard', () => {
 
   it('explores unit-aware product prices while preserving individual row history', async () => {
     const wrapper = render()
-    await wrapper.findAll('[role=tab]')[2]!.trigger('click')
+    await open(wrapper, 'Produkte')
     await wrapper.get('input[type=search]').setValue('BOLOGNESE')
     expect(wrapper.findAll('#export-panel-products > .export-table-scroll tbody tr')).toHaveLength(1)
     await wrapper.get('.export-table button').trigger('click')
@@ -58,10 +74,13 @@ describe('account export dashboard', () => {
 
   it('explains bonus reconciliation and model estimates', async () => {
     const wrapper = render()
-    await wrapper.findAll('[role=tab]')[3]!.trigger('click')
+    await open(wrapper, 'Bonus')
     expect(wrapper.text()).toContain('0,30')
     expect(wrapper.text()).toContain('Ein Anfangsguthaben')
-    await wrapper.findAll('[role=tab]')[4]!.trigger('click')
+    await open(wrapper, 'Was REWE weiß')
+    expect(wrapper.find('#export-panel-summary').exists()).toBe(true)
+    expect(wrapper.find('.export-main-filters').exists()).toBe(false)
+    await open(wrapper, 'Profil')
     expect(wrapper.text()).toContain('42,5')
     expect(wrapper.text()).toContain('Diese Angaben stammen aus deinem REWE-Datenexport')
     expect(wrapper.findAll('.export-profile-card p')).toHaveLength(0)
@@ -72,6 +91,7 @@ describe('account export dashboard', () => {
 
   it('keeps analytics streams distinct and supports keyboard navigation', async () => {
     const wrapper = render()
+    await open(wrapper, 'Was REWE weiß')
     await wrapper.findAll('[role=tab]')[0]!.trigger('keydown', { key: 'End' })
     expect(wrapper.get('#export-tab-activity').attributes('aria-selected')).toBe('true')
     expect(wrapper.text()).toContain('Pixel 6')
@@ -87,12 +107,29 @@ describe('account export dashboard', () => {
     const data = wrapper.props('data')
     data.purchases[0]!.name = '<img src=x onerror=alert(1)>'
     await wrapper.setProps({ data: { ...data } })
-    await wrapper.findAll('[role=tab]')[2]!.trigger('click')
+    await open(wrapper, 'Produkte')
     expect(wrapper.text()).toContain('<img src=x onerror=alert(1)>')
     expect(wrapper.find('img').exists()).toBe(false)
     i18n.global.locale.value = 'en'
     await wrapper.vm.$nextTick()
     expect(wrapper.text()).toContain('Your recurring products')
+    wrapper.unmount()
+  })
+
+  it('restores view and filters from the URL hash and drills from insights into details', async () => {
+    window.location.hash = '#/rewe-export/shopping/products?q=BOLOGNESE&sort=days'
+    window.dispatchEvent(new HashChangeEvent('hashchange'))
+    const wrapper = render()
+    expect(wrapper.get('#export-tab-products').attributes('aria-selected')).toBe('true')
+    expect((wrapper.get('input[type=search]').element as HTMLInputElement).value).toBe('BOLOGNESE')
+    expect(wrapper.findAll('#export-panel-products > .export-table-scroll tbody tr')).toHaveLength(1)
+    await open(wrapper, 'Auswertung')
+    expect(window.location.hash).toBe('#/rewe-export/shopping?q=BOLOGNESE&sort=days')
+    const product = wrapper.findAll('.export-insights .export-inline-button').find((button) => button.text().includes('BOLOGNESE'))!
+    await product.trigger('click')
+    expect(wrapper.get('#export-tab-products').attributes('aria-selected')).toBe('true')
+    expect(wrapper.find('.export-product-history').exists()).toBe(true)
+    expect(window.location.hash).toContain('product=')
     wrapper.unmount()
   })
 })

@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { describe, expect, it } from 'vitest'
 import { exportInsights, insightMonths, insightRange, typicalMonth } from '../../src/domain/receipts/reweExport/insights'
-import type { ExportPurchase } from '../../src/domain/receipts/reweExport/schema'
+import { emptyReweExport, type ExportPurchase } from '../../src/domain/receipts/reweExport/schema'
 import ExportInsights from '../../src/features/reweExport/ExportInsights.vue'
 import { i18n } from '../../src/i18n'
 
@@ -96,7 +96,7 @@ describe('export insights', () => {
 describe('export insights view', () => {
   it('renders compiled insights in both languages', async () => {
     i18n.global.locale.value = 'de'
-    const wrapper = mount(ExportInsights, { props: { rows: year() }, global: { plugins: [i18n], stubs: { ChartCard: { props: ['title'], template: '<section class="chart-stub">{{ title }}</section>' } } } })
+    const wrapper = mount(ExportInsights, { props: { rows: year(), data: { ...emptyReweExport(), purchases: year() } }, global: { plugins: [i18n], stubs: { ChartCard: { props: ['title'], template: '<section class="chart-stub">{{ title }}</section>' } } } })
     expect(wrapper.text()).toContain('Typischer Monat')
     expect(wrapper.text()).toContain('Deine Dauerbrenner')
     expect(wrapper.text()).toContain('alle ~7 Tage')
@@ -111,7 +111,7 @@ describe('export insights view', () => {
   })
 
   it('explains when there is nothing to compile', () => {
-    const wrapper = mount(ExportInsights, { props: { rows: [] }, global: { plugins: [i18n] } })
+    const wrapper = mount(ExportInsights, { props: { rows: [], data: emptyReweExport() }, global: { plugins: [i18n] } })
     expect(wrapper.text()).toContain('zu wenige Artikelpositionen')
   })
 })

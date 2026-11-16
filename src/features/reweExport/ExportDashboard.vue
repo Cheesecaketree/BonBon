@@ -6,27 +6,36 @@ import ChartCard from '../dashboard/ChartCard.vue'
 import ExportProductHistory from './ExportProductHistory.vue'
 import ExportDateRangePicker from './ExportDateRange.vue'
 import ExportInsights from './ExportInsights.vue'
-import type { ExportAnalysisView as View } from './navigation'
+import ExportReweSummary from './ExportReweSummary.vue'
+import ExportShareDialog from './ExportShareDialog.vue'
+import { exportArea, exportAreaViews, useExportRoute, type ExportArea, type ExportSort, type ExportView } from './navigation'
+import { useExportFormat } from './format'
 import { inExportRange, type ExportDateRange } from '../../domain/receipts/reweExport/dateRange'
-import { exportProfileCards, profileValueFormat, profileValueToken } from '../../domain/receipts/reweExport/profile'
+import { exportProfileCards } from '../../domain/receipts/reweExport/profile'
 import type { ExportFact, ExportOrigin, ReweExport } from '../../domain/receipts/reweExport/schema'
 import { activityCounts, exportBonus, exportDayGroups, exportDevices, exportMarkets, exportMonths, exportProducts, exportPurchases, exportSummary } from '../../domain/receipts/reweExport/analytics'
 
-const props = defineProps<{ data: ReweExport; view?: View; hideTabs?: boolean }>()
-const { t, te, locale } = useI18n()
-const active = ref<View>(props.view ?? 'purchases')
-const range = ref<ExportDateRange>({ start: '', end: '' })
-const market = ref('')
-const search = ref('')
-const sort = ref('spend')
+const props = defineProps<{ data: ReweExport }>()
+const { t, te } = useI18n()
+const { route, navigate } = useExportRoute()
+const { money, number, date: formatDate, factValue } = useExportFormat()
 const limit = ref(20)
-const selectedProduct = ref('')
 const stream = ref<'app' | 'appEvents' | 'web'>('app')
 const activityLimit = ref(20)
-const currency = computed(() => new Intl.NumberFormat(locale.value === 'de' ? 'de-DE' : 'en-GB', { style: 'currency', currency: 'EUR' }))
-const decimal = computed(() => new Intl.NumberFormat(locale.value === 'de' ? 'de-DE' : 'en-GB', { maximumFractionDigits: 3 }))
-const percent = computed(() => new Intl.NumberFormat(locale.value === 'de' ? 'de-DE' : 'en-GB', { style: 'percent', maximumFractionDigits: 1 }))
-const tabs = computed(() => (['insights', 'purchases', 'products', 'bonus', 'profile', 'activity'] as View[]).map((id) => ({ id, label: t(id === 'insights' ? 'reweExport.insights.tab' : `reweExport.${id}Tab`) })))
+const sharing = ref(false)
+
+const active = computed(() => route.view)
+const area = computed(() => exportArea(route.view))
+const areas: ExportArea[] = ['shopping', 'rewe']
+const tabs = computed(() => exportAreaViews[area.value].map((id) => ({ id, label: t(`reweExport.views.${id}`) })))
+const range = computed<ExportDateRange>({
+  get: () => ({ start: route.start, end: route.end }),
+  set: (value) => navigate({ start: value.start, end: value.end }, { replace: true }),
+})
+const market = computed({ get: () => route.market, set: (value: string) => navigate({ market: value }, { replace: true }) })
+const search = computed({ get: () => route.q, set: (value: string) => navigate({ q: value, product: '' }, { replace: true }) })
+const sort = computed({ get: () => route.sort, set: (value: ExportSort) => navigate({ sort: value }, { replace: true }) })
+
 const markets = computed(() => [...new Set(props.data.purchases.map((row) => row.market))].sort())
 const rows = computed(() => exportPurchases(props.data, 'all', market.value, range.value))
 const summary = computed(() => exportSummary(rows.value))
@@ -45,7 +54,7 @@ const productRows = computed(() => {
   else if (sort.value === 'name') values.sort((a, b) => a.name.localeCompare(b.name))
   return values
 })
-const product = computed(() => products.value.find((entry) => entry.key === selectedProduct.value))
+const product = computed(() => products.value.find((entry) => entry.key === route.product))
 const bonus = computed(() => exportBonus(props.data, 'all', range.value))
 const skipped = computed(() => props.data.files.reduce((sum, file) => sum + file.skippedRows, 0))
 const streams = ['app', 'appEvents', 'web'] as const
@@ -78,15 +87,6 @@ const extraFacts = computed(() => props.data.facts.filter((fact) => !profileCard
 const hasInterestNames = computed(() => props.data.interests.some((row) => Boolean(row.name)))
 const interests = computed(() => [...props.data.interests].sort((a, b) => b.score - a.score))
 
-function money(cents: number) { return currency.value.format(cents / 100) }
-function number(value: number) { return decimal.value.format(value) }
-function formatDate(value: string) {
-  const date = value.slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return value
-  const parsed = new Date(`${date}T00:00:00Z`)
-  if (!Number.isFinite(parsed.getTime())) return value
-  return new Intl.DateTimeFormat(locale.value === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(parsed)
-}
 function source(origin: ExportOrigin) {
   const label = t('reweExport.provenance', { file: origin.file, table: origin.table + 1, row: origin.row + 1 })
   return origin.column === undefined ? label : `${label} · ${t('reweExport.sourceColumn', { column: origin.column + 1 })}`
@@ -96,27 +96,6 @@ function fieldLabel(field: string) {
   if (te(`reweExport.metricLabels.${field}`)) return t(`reweExport.metricLabels.${field}`)
   return te(`reweExport.fields.${field}`) ? t(`reweExport.fields.${field}`) : field
 }
-function factValue(fact: ExportFact) {
-  const value = Number(fact.value)
-  const format = profileValueFormat(fact.field)
-  if (format === 'money' && Number.isFinite(value)) return money(Math.round(value * 100))
-  if (format === 'ratio' && Number.isFinite(value)) return percent.value.format(value)
-  if (format === 'percent' && Number.isFinite(value)) return `${rounded(value)} %`
-  if (format === 'date') return formatDate(fact.value)
-  if (format === 'boolean') {
-    if (fact.value === 'true' || value === 1) return t('reweExport.values.yes')
-    if (fact.value === 'false' || value === 0) return t('reweExport.values.no')
-    return fact.value
-  }
-  if (format === 'number' && Number.isFinite(value)) return rounded(value)
-  const age = locale.value === 'en' && fact.field === 'LEBENSPHASE' ? fact.value.match(/^(\d+)\s+bis\s+(\d+)\s+Jahre$/) : undefined
-  if (age) return t('reweExport.ageRange', { from: age[1], to: age[2] })
-  const token = locale.value === 'en' ? profileValueToken(fact) : undefined
-  if (token) return t(`reweExport.values.${token}`)
-  if (/^[+-]?\d+(?:\.\d+|[eE][+-]?\d+)/.test(fact.value) && Number.isFinite(value)) return rounded(value)
-  return fact.value
-}
-function rounded(value: number) { return new Intl.NumberFormat(locale.value === 'de' ? 'de-DE' : 'en-GB', { maximumFractionDigits: 2 }).format(value) }
 function consentLabel(type: string): string {
   const [base, channel] = type.split(' · ')
   const label = te(`reweExport.consentTypes.${base}`) ? t(`reweExport.consentTypes.${base}`) : base!
@@ -135,13 +114,14 @@ function priceRange(min: number | null, max: number | null) {
   return min === max ? money(min) : `${money(min)} – ${money(max)}`
 }
 function selectProduct(key: string) {
-  selectedProduct.value = key
+  navigate({ product: key })
   void nextTick(() => document.querySelector('.export-product-history')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }))
 }
-function switchTab(view: View) {
-  active.value = view
-  limit.value = 20
-  selectedProduct.value = ''
+function switchTab(view: ExportView) {
+  if (view !== active.value) navigate({ view })
+}
+function switchArea(target: ExportArea) {
+  if (target !== area.value) navigate({ view: exportAreaViews[target][0]! })
 }
 function tabKeys(event: KeyboardEvent, index: number) {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
@@ -150,23 +130,8 @@ function tabKeys(event: KeyboardEvent, index: number) {
   switchTab(tabs.value[target]!.id)
   void nextTick(() => document.getElementById(`export-tab-${active.value}`)?.focus())
 }
-watch([range, market, search, sort], () => {
-  limit.value = 20
-  selectedProduct.value = ''
-})
+watch(() => [route.view, route.start, route.end, route.market, route.q, route.sort], () => { limit.value = 20 })
 watch(stream, () => { activityLimit.value = 20 })
-watch(() => props.view, (view) => { if (view && view !== active.value) switchTab(view) })
-watch(() => props.data, () => {
-  active.value = 'purchases'
-  search.value = ''
-  sort.value = 'spend'
-  stream.value = 'app'
-  range.value = { start: '', end: '' }
-  market.value = ''
-  selectedProduct.value = ''
-  limit.value = 20
-  activityLimit.value = 20
-})
 
 function chart(labels: string[], series: EChartsOption['series']): EChartsOption {
   return {
@@ -190,19 +155,28 @@ const activityOption = computed(() => chart(activityMonths.value.map(([month]) =
 
 <template>
   <section class="dashboard export-dashboard">
-    <header class="dashboard-heading">
+    <header class="dashboard-heading export-dashboard-heading">
       <div><p class="eyebrow">{{ t('reweExport.kicker') }}</p><h1>{{ t('reweExport.title') }}</h1><p>{{ t('reweExport.separate') }}</p></div>
-      <p class="export-period" v-if="sourceSummary.firstDate">{{ t('reweExport.period') }}<strong>{{ formatDate(sourceSummary.firstDate) }} – {{ formatDate(sourceSummary.lastDate!) }}</strong></p>
+      <div class="export-heading-side">
+        <p class="export-period" v-if="sourceSummary.firstDate">{{ t('reweExport.period') }}<strong>{{ formatDate(sourceSummary.firstDate) }} – {{ formatDate(sourceSummary.lastDate!) }}</strong></p>
+        <button class="button secondary export-share-button" type="button" @click="sharing = true">{{ t('reweExport.share.open') }}</button>
+      </div>
     </header>
-    <nav v-if="!hideTabs" class="analytics-tabs" role="tablist" :aria-label="t('analyticsViews')">
+
+    <nav class="export-areas" :aria-label="t('reweExport.areas.label')">
+      <button v-for="value in areas" :key="value" type="button" :class="{ active: area === value }" :aria-pressed="area === value" @click="switchArea(value)">
+        <strong>{{ t(`reweExport.areas.${value}`) }}</strong><span>{{ t(`reweExport.areas.${value}Copy`) }}</span>
+      </button>
+    </nav>
+    <nav class="analytics-tabs export-view-tabs" role="tablist" :aria-label="t(`reweExport.areas.${area}`)">
       <button v-for="(tab, index) in tabs" :id="`export-tab-${tab.id}`" :key="tab.id" type="button" role="tab" :aria-selected="active === tab.id" :aria-controls="`export-panel-${tab.id}`" :tabindex="active === tab.id ? 0 : -1" @click="switchTab(tab.id)" @keydown="tabKeys($event, index)">{{ tab.label }}</button>
     </nav>
-    <div v-if="['insights', 'purchases', 'products', 'bonus'].includes(active)" class="export-filters export-main-filters">
+    <div v-if="area === 'shopping'" class="export-filters export-main-filters">
       <ExportDateRangePicker v-model="range" :data-dates="calendarDates" :metadata-dates="market || active === 'bonus' ? [] : metadataDates" :data-label="active === 'bonus' ? t('reweExport.calendarBonus') : undefined" />
       <label v-if="active !== 'bonus'">{{ t('reweExport.market') }}<select v-model="market"><option value="">{{ t('reweExport.allMarkets') }}</option><option v-for="value in markets" :key="value">{{ value }}</option></select></label>
     </div>
 
-    <ExportInsights v-if="active === 'insights'" :rows="rows" />
+    <ExportInsights v-if="active === 'insights'" :rows="rows" :data="data" />
 
     <section v-else-if="active === 'purchases'" id="export-panel-purchases" role="tabpanel" aria-labelledby="export-tab-purchases">
       <section class="stat-grid primary-stats">
@@ -220,7 +194,7 @@ const activityOption = computed(() => chart(activityMonths.value.map(([month]) =
       <article class="export-card">
         <h2>{{ t('reweExport.dayGroups') }}</h2><p>{{ t('reweExport.dayCopy') }}</p>
         <p v-if="!groups.length">{{ t('reweExport.noPurchases') }}</p>
-        <details v-for="group in groups.slice(0, limit)" :key="group.key" class="export-day">
+        <details v-for="group in groups.slice(0, limit)" :key="group.key" class="export-day" :open="groups.length === 1">
           <summary><span><strong>{{ formatDate(group.date) }}</strong><small>{{ group.market }}</small></span><span>{{ t('reweExport.positions', { count: group.rows.length }) }}<strong>{{ money(group.cents) }}</strong></span></summary>
           <div class="export-table-scroll" tabindex="0" :aria-label="t('reweExport.tableScroll')"><table class="export-table"><thead><tr><th>{{ t('reweExport.product') }}</th><th>{{ t('reweExport.quantity') }}</th><th>{{ t('reweExport.amountColumn') }}</th></tr></thead><tbody><tr v-for="(row, index) in group.rows" :key="index" :title="source(row.origin)"><td>{{ row.name }}</td><td>{{ number(row.quantity) }} {{ t(`reweExport.unit.${row.quantityUnit}`) }}</td><td>{{ money(row.lineTotalCents) }}</td></tr></tbody></table></div>
         </details>
@@ -231,10 +205,10 @@ const activityOption = computed(() => chart(activityMonths.value.map(([month]) =
     <section v-else-if="active === 'products'" id="export-panel-products" role="tabpanel" aria-labelledby="export-tab-products" class="export-card">
       <h2>{{ t('reweExport.productsTitle') }}</h2><p>{{ t('reweExport.productsCopy') }}</p>
       <div class="export-filters"><label>{{ t('reweExport.search') }}<input v-model="search" type="search" /></label><label>{{ t('reweExport.sort') }}<select v-model="sort"><option value="spend">{{ t('reweExport.sortSpend') }}</option><option value="days">{{ t('reweExport.sortDays') }}</option><option value="name">{{ t('reweExport.sortName') }}</option></select></label></div>
+      <ExportProductHistory v-if="product" :key="product.key" :product="product" :start="range.start || sourceSummary.firstDate" :end="range.end || sourceSummary.lastDate" @close="navigate({ product: '' })" />
       <div class="export-table-scroll" tabindex="0" :aria-label="t('reweExport.tableScroll')"><table class="export-table"><thead><tr><th>{{ t('reweExport.product') }}</th><th>{{ t('reweExport.quantity') }}</th><th>{{ t('reweExport.days') }}</th><th>{{ t('reweExport.unitPrice') }}</th><th>{{ t('reweExport.priceRange') }}</th><th>{{ t('reweExport.amountColumn') }}</th></tr></thead><tbody><tr v-for="entry in productRows.slice(0, limit)" :key="entry.key"><td><button class="export-inline-button" type="button" @click="selectProduct(entry.key)">{{ entry.name }} ↗</button></td><td>{{ number(entry.quantity) }} {{ t(`reweExport.unit.${entry.unit}`) }}</td><td>{{ entry.days }}</td><td>{{ entry.averagePriceCents === null ? '—' : money(entry.averagePriceCents) }}</td><td>{{ priceRange(entry.minPriceCents, entry.maxPriceCents) }}</td><td>{{ money(entry.cents) }}</td></tr></tbody></table></div>
       <p v-if="!productRows.length">{{ t('reweExport.noProducts') }}</p>
       <button v-if="productRows.length > limit" class="button secondary" type="button" @click="limit += 20">{{ t('reweExport.showMore') }}</button>
-      <ExportProductHistory v-if="product" :key="product.key" :product="product" :start="range.start || sourceSummary.firstDate" :end="range.end || sourceSummary.lastDate" @close="selectedProduct = ''" />
     </section>
 
     <section v-else-if="active === 'bonus'" id="export-panel-bonus" role="tabpanel" aria-labelledby="export-tab-bonus">
@@ -249,6 +223,8 @@ const activityOption = computed(() => chart(activityMonths.value.map(([month]) =
       </article>
     </section>
 
+    <ExportReweSummary v-else-if="active === 'summary'" :data="data" />
+
     <section v-else-if="active === 'profile'" id="export-panel-profile" role="tabpanel" aria-labelledby="export-tab-profile">
       <h2>{{ t('reweExport.profileTitle') }}</h2><p class="export-explanation">{{ t('reweExport.profileCopy') }}</p>
       <p v-if="!factGroups.length">{{ t('reweExport.noProfile') }}</p>
@@ -261,7 +237,7 @@ const activityOption = computed(() => chart(activityMonths.value.map(([month]) =
       </section>
       <details v-if="extraFacts.length" class="export-card export-more-profile"><summary>{{ t('reweExport.moreProfile') }}</summary><dl class="export-facts"><div v-for="(fact, index) in extraFacts" :key="index" :title="source(fact.origin)"><dt>{{ fieldLabel(fact.field) }}</dt><dd>{{ factValue(fact) }}</dd></div></dl></details>
       <details v-if="factGroups.length" class="export-card export-original-profile"><summary>{{ t('reweExport.originalProfile') }}</summary><section v-for="group in factGroups" :key="group.name"><h3>{{ groupLabel(group.name) }}</h3><dl class="export-facts"><div v-for="(fact, index) in group.facts" :key="index" :title="source(fact.origin)"><dt><code>{{ fact.field }}</code></dt><dd>{{ fact.value }}</dd></div></dl></section></details>
-      <article v-if="data.consents.length" class="export-card"><h2>{{ t('reweExport.consents') }}</h2><ul class="export-consents"><li v-for="(consent, index) in data.consents" :key="index" :title="source(consent.origin)"><div><strong>{{ consentLabel(consent.type) }}</strong><small>{{ formatDate(consent.changedAt) }} · {{ consentVia(consent.via) }}</small></div><span :class="{ granted: consent.granted }">{{ t(consent.granted ? 'reweExport.granted' : 'reweExport.denied') }}</span></li></ul></article>
+      <article v-if="data.consents.length" id="export-consents" class="export-card"><h2>{{ t('reweExport.consents') }}</h2><ul class="export-consents"><li v-for="(consent, index) in data.consents" :key="index" :title="source(consent.origin)"><div><strong>{{ consentLabel(consent.type) }}</strong><small>{{ formatDate(consent.changedAt) }} · {{ consentVia(consent.via) }}</small></div><span :class="{ granted: consent.granted }">{{ t(consent.granted ? 'reweExport.granted' : 'reweExport.denied') }}</span></li></ul></article>
       <article v-if="interests.length" class="export-card export-interests">
         <h2>{{ t('reweExport.interests') }}</h2><p>{{ t('reweExport.interestsCopy') }}</p><p v-if="!hasInterestNames">{{ t('reweExport.interestMissingNames', { count: interests.length }) }}</p>
         <div class="export-badges"><span>{{ t('reweExport.interestCount') }}: {{ number(interests.length) }}</span><span>{{ t('reweExport.interestScoreRange') }}: {{ number(interests.at(-1)!.score) }}<template v-if="interests[0]!.score !== interests.at(-1)!.score"> – {{ number(interests[0]!.score) }}</template></span></div>
@@ -284,5 +260,6 @@ const activityOption = computed(() => chart(activityMonths.value.map(([month]) =
     </section>
 
     <details class="export-card export-import-details"><summary>{{ t('reweExport.importDetails') }} · {{ t('reweExport.importedFiles', { count: data.files.length }) }}</summary><p v-if="skipped">{{ t('reweExport.skippedCopy', { count: skipped }) }}</p><div class="export-table-scroll" tabindex="0" :aria-label="t('reweExport.tableScroll')"><table class="export-table"><thead><tr><th>{{ t('reweExport.source') }}</th><th>{{ t('reweExport.recognized') }}</th><th>{{ t('reweExport.skipped') }}</th></tr></thead><tbody><tr v-for="(file, index) in data.files" :key="index"><td>{{ file.name }}</td><td>{{ file.recognizedTables }}</td><td>{{ file.skippedRows }}</td></tr></tbody></table></div></details>
+    <ExportShareDialog v-if="sharing" :data="data" @close="sharing = false" />
   </section>
 </template>

@@ -9,6 +9,7 @@ import { clearPersistedData, loadPdfFiles, loadReceipts, savePdfFiles, saveRecei
 import { downloadReceiptExport, parseReceiptExport } from './services/storage/interchange'
 import ImportPanel from './features/import/ImportPanel.vue'
 import AppFooter from './features/common/AppFooter.vue'
+import { isExportHash, lastExportHash } from './features/reweExport/navigation'
 import packageInfo from '../package.json'
 const Dashboard = defineAsyncComponent(() => import('./features/dashboard/Dashboard.vue'))
 const AboutView = defineAsyncComponent(() => import('./features/about/AboutView.vue'))
@@ -44,7 +45,7 @@ function normalizeReceiptMarketId(receipt: Receipt & { marketHeaderExcerpt?: str
 
 function syncRoute() {
   const hash = window.location.hash
-  if (hash === '#/rewe-export') {
+  if (isExportHash(hash)) {
     exportOpened.value = true
     currentView.value = 'rewe-export'
 
@@ -63,7 +64,7 @@ function setView(view: AppView, tab?: 'about' | 'privacy') {
   currentView.value = view
   if (view === 'rewe-export') {
     exportOpened.value = true
-    window.location.hash = '#/rewe-export'
+    window.location.hash = lastExportHash()
 
   } else if (view === 'about') {
     if (tab) aboutTab.value = tab
