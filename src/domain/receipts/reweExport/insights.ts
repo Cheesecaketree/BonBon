@@ -270,18 +270,31 @@ export function exportInsights(rows: ExportPurchase[]): ExportInsights {
     monthlyCents: Math.round(group.cents / group.months.size),
   }))
 
+  // The export has no offer flag, only the amount paid. Offers only ever lower a price, so the regular
+  // shelf price of a period is the highest unit price paid in it. Comparing that for the first and last
+  // third of a product's history keeps one-off offers from showing up as price changes.
   const priceChanges: PriceChange[] = []
   for (const [key, values] of products) {
     const unit = values[0]!.quantityUnit
     if (unit === 'unknown') continue
-    const byDate = new Map<string, number[]>()
-    values.filter((row) => row.quantity > 0 && row.lineTotalCents > 0)
-      .forEach((row) => byDate.set(row.date, [...(byDate.get(row.date) ?? []), row.lineTotalCents / row.quantity]))
-    const dates = [...byDate.keys()].sort()
-    if (dates.length < 3 || dayNumber(dates.at(-1)!) - dayNumber(dates[0]!) < 60) continue
-    const firstPriceCents = Math.round(median(byDate.get(dates[0]!)!))
-    const lastPriceCents = Math.round(median(byDate.get(dates.at(-1)!)!))
-    priceChanges.push({ key, name: values[0]!.name, unit, firstDate: dates[0]!, lastDate: dates.at(-1)!, firstPriceCents, lastPriceCents, change: (lastPriceCents - firstPriceCents) / firstPriceCents })
+    const observations = values.filter((row) => row.quantity > 0 && row.lineTotalCents > 0)
+      .map((row) => ({ day: dayNumber(row.date), date: row.date, price: row.lineTotalCents / row.quantity }))
+    if (!observations.length) continue
+    const first = Math.min(...observations.map((entry) => entry.day))
+    const last = Math.max(...observations.map((entry) => entry.day))
+    if (last - first < 90) continue
+    const third = (last - first) / 3
+    const early = observations.filter((entry) => entry.day <= first + third)
+    const late = observations.filter((entry) => entry.day >= last - third)
+    // Two purchase days per period, so a single offer cannot stand in for the regular price.
+    if (new Set(early.map((entry) => entry.date)).size < 2 || new Set(late.map((entry) => entry.date)).size < 2) continue
+    const firstPriceCents = Math.round(Math.max(...early.map((entry) => entry.price)))
+    const lastPriceCents = Math.round(Math.max(...late.map((entry) => entry.price)))
+    priceChanges.push({
+      key, name: values[0]!.name, unit,
+      firstDate: early.map((entry) => entry.date).sort()[0]!, lastDate: late.map((entry) => entry.date).sort().at(-1)!,
+      firstPriceCents, lastPriceCents, change: (lastPriceCents - firstPriceCents) / firstPriceCents,
+    })
   }
   const rising = priceChanges.filter((entry) => entry.change > 0.005).sort((a, b) => b.change - a.change || a.key.localeCompare(b.key)).slice(0, 8)
   const falling = priceChanges.filter((entry) => entry.change < -0.005).sort((a, b) => a.change - b.change || a.key.localeCompare(b.key)).slice(0, 5)
