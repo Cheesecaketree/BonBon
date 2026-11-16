@@ -8,7 +8,7 @@ import { reactive, readonly } from 'vue'
 
 export type ExportArea = 'shopping' | 'rewe'
 export type ExportView = 'insights' | 'purchases' | 'products' | 'bonus' | 'summary' | 'profile' | 'activity'
-export type ExportSort = 'spend' | 'days' | 'name'
+export type ExportSort = 'spend' | 'days' | 'quantity' | 'name'
 
 export const exportAreaViews: Record<ExportArea, ExportView[]> = {
   shopping: ['insights', 'purchases', 'products', 'bonus'],
@@ -27,7 +27,7 @@ export interface ExportRoute {
 }
 
 export const exportRoot = '#/rewe-export'
-const sorts: ExportSort[] = ['spend', 'days', 'name']
+const sorts: ExportSort[] = ['spend', 'days', 'quantity', 'name']
 const isoDate = /^\d{4}-\d{2}-\d{2}$/
 
 export function defaultExportRoute(): ExportRoute {

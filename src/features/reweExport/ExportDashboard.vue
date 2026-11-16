@@ -51,6 +51,8 @@ const products = computed(() => exportProducts(rows.value))
 const productRows = computed(() => {
   const values = products.value.filter((product) => product.name.toLocaleLowerCase().includes(search.value.toLocaleLowerCase()))
   if (sort.value === 'days') values.sort((a, b) => b.days - a.days || b.cents - a.cents)
+  // Packs and pieces before weights, so 3 packs never rank below 3.4 kg of loose produce.
+  else if (sort.value === 'quantity') values.sort((a, b) => Number(b.unit === 'item') - Number(a.unit === 'item') || b.quantity - a.quantity || b.cents - a.cents)
   else if (sort.value === 'name') values.sort((a, b) => a.name.localeCompare(b.name))
   return values
 })
@@ -204,7 +206,7 @@ const activityOption = computed(() => chart(activityMonths.value.map(([month]) =
 
     <section v-else-if="active === 'products'" id="export-panel-products" role="tabpanel" aria-labelledby="export-tab-products" class="export-card">
       <h2>{{ t('reweExport.productsTitle') }}</h2><p>{{ t('reweExport.productsCopy') }}</p>
-      <div class="export-filters"><label>{{ t('reweExport.search') }}<input v-model="search" type="search" /></label><label>{{ t('reweExport.sort') }}<select v-model="sort"><option value="spend">{{ t('reweExport.sortSpend') }}</option><option value="days">{{ t('reweExport.sortDays') }}</option><option value="name">{{ t('reweExport.sortName') }}</option></select></label></div>
+      <div class="export-filters"><label>{{ t('reweExport.search') }}<input v-model="search" type="search" /></label><label>{{ t('reweExport.sort') }}<select v-model="sort"><option value="spend">{{ t('reweExport.sortSpend') }}</option><option value="days">{{ t('reweExport.sortDays') }}</option><option value="quantity">{{ t('reweExport.sortQuantity') }}</option><option value="name">{{ t('reweExport.sortName') }}</option></select></label></div>
       <ExportProductHistory v-if="product" :key="product.key" :product="product" :start="range.start || sourceSummary.firstDate" :end="range.end || sourceSummary.lastDate" @close="navigate({ product: '' })" />
       <div class="export-table-scroll" tabindex="0" :aria-label="t('reweExport.tableScroll')"><table class="export-table"><thead><tr><th>{{ t('reweExport.product') }}</th><th>{{ t('reweExport.quantity') }}</th><th>{{ t('reweExport.days') }}</th><th>{{ t('reweExport.unitPrice') }}</th><th>{{ t('reweExport.priceRange') }}</th><th>{{ t('reweExport.amountColumn') }}</th></tr></thead><tbody><tr v-for="entry in productRows.slice(0, limit)" :key="entry.key"><td><button class="export-inline-button" type="button" @click="selectProduct(entry.key)">{{ entry.name }} ↗</button></td><td>{{ number(entry.quantity) }} {{ t(`reweExport.unit.${entry.unit}`) }}</td><td>{{ entry.days }}</td><td>{{ entry.averagePriceCents === null ? '—' : money(entry.averagePriceCents) }}</td><td>{{ priceRange(entry.minPriceCents, entry.maxPriceCents) }}</td><td>{{ money(entry.cents) }}</td></tr></tbody></table></div>
       <p v-if="!productRows.length">{{ t('reweExport.noProducts') }}</p>

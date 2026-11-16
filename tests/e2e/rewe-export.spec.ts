@@ -203,8 +203,8 @@ test('starts on insights, drills into details with working back navigation, and 
   await expect(page).toHaveURL(/q=BOLOGNESE/)
   await area(page, 'Was REWE weiß').click()
   const summary = page.locator('#export-panel-summary')
-  await expect(summary.locator('[data-check="budget"]')).toContainText('Alltagsbudget')
-  await expect(summary.locator('[data-check="market"]')).toContainText('REWE Beispielmarkt')
+  await expect(summary.locator('.export-rewe-highlights [data-label="priceSensitivity"]')).toContainText('qualitätsbewusst')
+  await expect(summary.locator('[data-label="primaryMarket"]')).toContainText('REWE Beispielmarkt')
   await expectNoOverflow(page)
   await page.setViewportSize(testInfo.project.use.viewport ?? { width: 1280, height: 900 })
   await summary.getByRole('button', { name: /Interaktionsdatensätze/ }).click()
@@ -249,6 +249,6 @@ test('keeps long product and assigned-market names readable in insights and REWE
     await expectNoOverflow(page)
   }
   await area(page, 'What REWE knows').click()
-  await expect(page.locator('[data-check="market"]')).toContainText(market)
+  await expect(page.locator('[data-label="primaryMarket"]')).toContainText(market)
   await expectNoOverflow(page)
 })

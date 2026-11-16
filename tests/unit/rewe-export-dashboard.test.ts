@@ -116,6 +116,24 @@ describe('account export dashboard', () => {
     wrapper.unmount()
   })
 
+  it('sorts products by quantity with packs before weights', async () => {
+    const wrapper = render()
+    const data = wrapper.props('data')
+    const origin = { file: 'synthetic.html', table: 0, row: 0 }
+    data.purchases.push(
+      { date: '2026-09-24', market: 'M', name: 'APFEL LOSE', quantity: 9.5, quantityUnit: 'kg', lineTotalCents: 2000, kind: 'product', origin },
+      { date: '2026-09-24', market: 'M', name: 'EIER 10ER', quantity: 7, quantityUnit: 'item', lineTotalCents: 100, kind: 'product', origin },
+    )
+    await wrapper.setProps({ data: { ...data } })
+    await open(wrapper, 'Produkte')
+    await wrapper.get('#export-panel-products select').setValue('quantity')
+    const names = wrapper.findAll('#export-panel-products > .export-table-scroll tbody tr td:first-child').map((cell) => cell.text())
+    expect(names[0]).toContain('EIER 10ER')
+    expect(names.findIndex((name) => name.includes('APFEL LOSE'))).toBeGreaterThan(names.findIndex((name) => name.includes('BOLOGNESE')))
+    expect(window.location.hash).toContain('sort=quantity')
+    wrapper.unmount()
+  })
+
   it('restores view and filters from the URL hash and drills from insights into details', async () => {
     window.location.hash = '#/rewe-export/shopping/products?q=BOLOGNESE&sort=days'
     window.dispatchEvent(new HashChangeEvent('hashchange'))

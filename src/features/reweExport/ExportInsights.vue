@@ -93,7 +93,6 @@ const weekdayOption = computed<EChartsOption>(() => ({
 <template>
   <section id="export-panel-insights" role="tabpanel" aria-labelledby="export-tab-insights" class="export-insights">
     <h2>{{ t('reweExport.insights.title') }}</h2>
-    <p class="export-explanation">{{ t('reweExport.insights.copy') }}</p>
     <p v-if="!rows.length || !typical">{{ t('reweExport.insights.empty') }}</p>
     <template v-else>
       <section class="export-insight-highlights">
@@ -182,7 +181,7 @@ const weekdayOption = computed<EChartsOption>(() => ({
             <strong>{{ t('reweExport.insights.tripShare', { share: percent(product.tripShare) }) }}</strong>
           </li></ol>
         </article>
-        <ChartCard v-if="insights.trips && insights.trips.count > 1" :title="t('reweExport.insights.weekdays')" :copy="t('reweExport.insights.weekdaysCopy')" :option="weekdayOption" />
+        <ChartCard v-if="insights.trips && insights.trips.count > 1" :title="t('reweExport.insights.weekdays')" :option="weekdayOption" />
       </div>
 
       <article class="export-card">
@@ -205,7 +204,6 @@ const weekdayOption = computed<EChartsOption>(() => ({
 
       <article class="export-card">
         <h2>{{ t('reweExport.insights.habits') }}</h2>
-        <p>{{ t('reweExport.insights.habitsCopy') }}</p>
         <p v-if="!insights.newProducts.length && !insights.droppedProducts.length">{{ insights.months.length >= 6 ? t('reweExport.insights.noHabitChanges') : t('reweExport.insights.habitsShort') }}</p>
         <div v-else :class="{ 'export-two-columns': insights.newProducts.length && insights.droppedProducts.length }">
           <section v-if="insights.newProducts.length">
