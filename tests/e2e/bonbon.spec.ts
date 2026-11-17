@@ -6,9 +6,8 @@ test('explains BonBon when JavaScript is disabled', async ({ browser }) => {
   const page = await context.newPage()
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { name: 'Dein Einkauf, klarer gesehen.' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'PDF rein. Muster raus.' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Deine Daten gehören dir.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Dein Einkauf, klarer gesehen' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Deine Daten gehören dir' })).toBeVisible()
 
   const response = await page.request.get('/')
   expect(await response.text()).toContain('Für die lokale Auswertung deiner eBons benötigt BonBon JavaScript.')
@@ -18,7 +17,7 @@ test('explains BonBon when JavaScript is disabled', async ({ browser }) => {
 
 test('imports a synthetic REWE PDF and opens the dashboard', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Dein Einkauf, klarer gesehen.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Dein Einkauf, klarer gesehen' })).toBeVisible()
   await page.locator('input[type="file"][accept*="pdf"]').first().setInputFiles(path.resolve('tests/fixtures/rewe-one-page.pdf'))
   await expect(page.getByRole('heading', { name: 'Einkaufsjahr im Überblick' })).toBeVisible()
   await expect(page.getByText('12,34 €').first()).toBeVisible()
@@ -202,5 +201,5 @@ test('navigates to about page and privacy notice with AI disclosure and GitHub l
 
   // Return to overview
   await page.getByRole('button', { name: 'Zurück zur Übersicht' }).click()
-  await expect(page.getByRole('heading', { name: 'Dein Einkauf, klarer gesehen.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Dein Einkauf, klarer gesehen' })).toBeVisible()
 })

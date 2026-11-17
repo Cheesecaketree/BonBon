@@ -39,20 +39,12 @@ function staticLandingHtml() {
         <article class="import-panel static-import-note">
           <div class="receipt-mark" aria-hidden="true"><span></span><span></span><span></span></div>
           <div class="import-copy">
-            <p class="kicker">BONBON IMPORT</p>
             <h2>${copy.dropTitle}</h2>
-            <p>${copy.dropCopy}</p>
           </div>
-          <p class="fine-print">${copy.processingNote}</p>
           <noscript><p class="noscript-note">Für die lokale Auswertung deiner eBons benötigt BonBon JavaScript. Deine Dateien verlassen dabei nicht deinen Browser.</p></noscript>
         </article>
       </section>
-      <section class="steps" aria-labelledby="static-steps-title">
-        <div><p class="eyebrow">${copy.howLabel}</p><h2 id="static-steps-title">${copy.howItWorks}</h2></div>
-        <ol><li><span>01</span>${copy.stepOne}</li><li><span>02</span>${copy.stepTwo}</li><li><span>03</span>${copy.stepThree}</li></ol>
-      </section>
       <section class="static-privacy" aria-labelledby="static-privacy-title">
-        <p class="eyebrow">DATEN &amp; PRIVATSPHÄRE</p>
         <h2 id="static-privacy-title">${copy.localOnlyTitle}</h2>
         <p>${copy.localOnlyCopy}</p>
       </section>

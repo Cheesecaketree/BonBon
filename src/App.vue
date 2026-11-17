@@ -322,16 +322,6 @@ function onModalFiles(files: File[]) {
         </a>
       </div>
       <div class="topbar-actions">
-        <template v-if="receipts.length && !inExportArea">
-          <div class="topbar-data-actions">
-            <button class="topbar-btn primary" type="button" @click="openAddModal">
-              <span class="plus-icon">+</span> {{ t('importMore') }}
-            </button>
-            <button class="topbar-btn danger-ghost" type="button" :title="t('reweExport.clearReceipts')" @click="clearAll">
-              {{ t('reweExport.clearReceipts') }}
-            </button>
-          </div>
-        </template>
         <button
           class="topbar-nav-link"
           :class="{ active: currentView === 'about' }"
@@ -382,9 +372,8 @@ function onModalFiles(files: File[]) {
       </section>
       <section class="export-entry">
         <div><p class="eyebrow">{{ t('reweExport.kicker') }}</p><h2>{{ t('reweExport.entryTitle') }}</h2><p>{{ t('reweExport.entryCopy') }}</p></div>
-        <button class="button secondary" type="button" @click="setView('rewe-export')">{{ t('reweExport.entryButton') }} →</button>
+        <button class="button secondary" type="button" @click="setView('rewe-export')">{{ t('reweExport.entryButton') }}</button>
       </section>
-      <section class="steps" aria-labelledby="steps-title"><div><p class="eyebrow">{{ t('howLabel') }}</p><h2 id="steps-title">{{ t('howItWorks') }}</h2></div><ol><li><span>01</span>{{ t('stepOne') }}</li><li><span>02</span>{{ t('stepTwo') }}</li><li><span>03</span>{{ t('stepThree') }}</li></ol></section>
     </template>
 
     <template v-else>
@@ -392,13 +381,13 @@ function onModalFiles(files: File[]) {
       <section class="utility-section">
         <ImportPanel compact :processing="processing" @files="processFiles" />
         <article class="privacy-card">
-          <div><p class="eyebrow">{{ t('dataControls') }}</p><h2>{{ t('localOnlyTitle') }}</h2><p>{{ t('localOnlyCopy') }}</p></div>
+          <div><h2>{{ t('localOnlyTitle') }}</h2><p>{{ t('localOnlyCopy') }}</p></div>
           <div class="utility-actions">
             <button class="toggle-control" :class="{ active: persistenceEnabled }" type="button" role="switch" :aria-checked="persistenceEnabled" @click="togglePersistence"><i></i><span>{{ persistenceEnabled ? t('saved') : t('saveDevice') }}</span></button>
             <button class="text-button" type="button" @click="downloadReceiptExport(receipts)">{{ t('export') }}</button>
             <button class="text-button" type="button" @click="jsonInput?.click()">{{ t('importJson') }}</button>
             <button class="text-button danger" type="button" @click="clearAll">{{ t('reweExport.clearReceipts') }}</button>
-            <button class="privacy-help-link" type="button" @click="setView('about', 'privacy')">{{ t('privacy') }} →</button>
+            <button class="privacy-help-link" type="button" @click="setView('about', 'privacy')">{{ t('privacy') }}</button>
           </div>
           <input ref="jsonInput" class="hidden-file" type="file" accept="application/json,.json" tabindex="-1" aria-hidden="true" @change="importJson" />
         </article>
@@ -414,7 +403,6 @@ function onModalFiles(files: File[]) {
         <div class="add-modal-header">
           <p class="eyebrow">{{ t('importMore') }}</p>
           <h2>{{ t('dropTitle') }}</h2>
-          <p class="modal-intro">{{ t('dropCopy') }}</p>
         </div>
         <ImportPanel :processing="processing" @files="onModalFiles" />
       </div>

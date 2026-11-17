@@ -42,7 +42,7 @@ const checkedOn = computed(() => {
             <template v-else>{{ segment.text }}</template>
           </template>
         </p>
-        <button v-if="index === content.steps.length - 1" class="button secondary" type="button" @click="emit('import')">{{ content.importButton }} →</button>
+        <button v-if="index === content.steps.length - 1" class="button secondary" type="button" @click="emit('import')">{{ content.importButton }}</button>
       </li>
     </ol>
 

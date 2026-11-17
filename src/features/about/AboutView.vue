@@ -140,11 +140,6 @@ function switchTab(tab: 'about' | 'privacy') {
             </article>
             <article class="principle-item">
               <div class="principle-number">03</div>
-              <h3>{{ t('aboutTechDatasetTitle') }}</h3>
-              <p>{{ t('aboutTechDatasetCopy') }}</p>
-            </article>
-            <article class="principle-item">
-              <div class="principle-number">04</div>
               <h3>{{ t('aboutTechStackTitle') }}</h3>
               <p>{{ t('aboutTechStackCopy') }}</p>
             </article>

@@ -275,7 +275,7 @@ test('opens the data request guide from the import screen and returns to the imp
   await expectNoOverflow(page)
   await page.reload()
   await expect(page.getByRole('heading', { level: 1, name: 'So bekommst du deinen REWE-Datenexport' })).toBeVisible()
-  await page.getByRole('button', { name: 'Zum Import →' }).click()
+  await page.getByRole('button', { name: 'Zum Import', exact: true }).click()
   await expect(page).toHaveURL(/#\/rewe-export/)
   await expect(page.locator('[data-export-folder]')).toBeAttached()
   await expect(page.locator('[data-export-guide-link]')).toBeVisible()
