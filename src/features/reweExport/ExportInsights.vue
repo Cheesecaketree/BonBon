@@ -175,7 +175,6 @@ const weekdayOption = computed<EChartsOption>(() => ({
       <div class="export-two-columns">
         <article v-if="insights.basket.length" class="export-card">
           <h2>{{ t('reweExport.insights.basket') }}</h2>
-          <p>{{ t('reweExport.insights.basketCopy') }}</p>
           <ol class="export-ranking"><li v-for="product in insights.basket" :key="product.key">
             <span><button class="export-inline-button" type="button" @click="openProduct(product.key)">{{ product.name }}</button><small v-if="product.quantityPerTrip !== null"> · {{ t('reweExport.insights.perTripQuantity', { quantity: number(product.quantityPerTrip), unit: unit(product.unit) }) }}</small></span>
             <strong>{{ t('reweExport.insights.tripShare', { share: percent(product.tripShare) }) }}</strong>

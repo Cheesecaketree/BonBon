@@ -137,11 +137,10 @@ async function clearSnapshot() {
         </div>
         <section class="import-panel" :class="{ dragging }" @dragenter.prevent="dragging = true" @dragover.prevent @dragleave.prevent.self="dragging = false" @drop.prevent="drop">
           <div class="receipt-mark" aria-hidden="true"><span></span><span></span><span></span></div>
-          <div class="import-copy"><p class="kicker">{{ t('reweExport.kicker') }}</p><h2>{{ t('reweExport.dropTitle') }}</h2><p>{{ data ? t('reweExport.replaceCopy') : t('reweExport.dropCopy') }}</p></div>
+          <div class="import-copy"><h2>{{ t('reweExport.dropTitle') }}</h2><p>{{ data ? t('reweExport.replaceCopy') : t('reweExport.dropCopy') }}</p></div>
           <div class="button-row">
             <button class="button primary" type="button" :disabled="busy" @click="folderInput?.click()">{{ t('reweExport.folder') }}</button>
           </div>
-          <p class="fine-print">{{ t('reweExport.local') }}</p>
           <a class="export-guide-link" href="#/rewe-guide" data-export-guide-link>{{ t('reweExport.guideLink') }} →</a>
           <button v-if="data" class="export-inline-button" type="button" :disabled="busy" @click="replacing = false">{{ t('back') }}</button>        </section>
       </section>
@@ -149,7 +148,7 @@ async function clearSnapshot() {
     <template v-else>
       <ExportDashboard :key="data.importedAt" :data="data" />
       <section class="export-controls privacy-card">
-        <div><p class="eyebrow">{{ t('dataControls') }}</p><h2>{{ t('reweExport.dataControls') }}</h2><p>{{ t('reweExport.controlsCopy') }}</p></div>
+        <div><h2>{{ t('reweExport.dataControls') }}</h2><p>{{ t('reweExport.controlsCopy') }}</p></div>
         <div class="utility-actions">
           <button class="toggle-control" :class="{ active: saved }" type="button" role="switch" :aria-checked="saved" :disabled="busy" @click="toggleSave"><i></i><span>{{ t(saved ? 'reweExport.saved' : 'reweExport.save') }}</span></button>
           <button class="text-button" type="button" :disabled="busy" @click="replacing = true">{{ t('reweExport.replace') }}</button>

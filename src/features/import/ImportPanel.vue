@@ -34,9 +34,7 @@ async function drop(event: DragEvent) {
   >
     <div class="receipt-mark" aria-hidden="true"><span></span><span></span><span></span></div>
     <div class="import-copy">
-      <p class="kicker">BONBON IMPORT</p>
       <h2>{{ dragging ? t('dragActive') : (compact ? t('importMore') : t('dropTitle')) }}</h2>
-      <p v-if="!compact">{{ t('dropCopy') }}</p>
     </div>
     <div class="button-row">
       <button class="button primary" type="button" :disabled="processing" @click="fileInput?.click()">{{ t('choosePdfs') }}</button>
@@ -44,6 +42,5 @@ async function drop(event: DragEvent) {
     </div>
     <input ref="fileInput" class="hidden-file" type="file" accept="application/pdf,.pdf" multiple tabindex="-1" aria-hidden="true" @change="selectFiles" />
     <input ref="folderInput" class="hidden-file" type="file" accept="application/pdf,.pdf" multiple webkitdirectory tabindex="-1" aria-hidden="true" @change="selectFiles" />
-    <p v-if="!compact" class="fine-print">{{ t('processingNote') }}</p>
   </section>
 </template>

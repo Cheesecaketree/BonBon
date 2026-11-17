@@ -8,6 +8,6 @@ describe('ImportPanel', () => {
     i18n.global.locale.value = 'de'
     const wrapper = mount(ImportPanel, { global: { plugins: [i18n] } })
     expect(wrapper.text()).toContain('REWE eBons hier ablegen')
-    expect(wrapper.text()).toContain('Verarbeitung geschieht vollständig in diesem Browser-Tab')
+    expect(wrapper.text()).toContain('PDFs auswählen')
   })
 })
