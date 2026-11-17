@@ -14,6 +14,7 @@ import packageInfo from '../package.json'
 const Dashboard = defineAsyncComponent(() => import('./features/dashboard/Dashboard.vue'))
 const AboutView = defineAsyncComponent(() => import('./features/about/AboutView.vue'))
 const ReweExportFlow = defineAsyncComponent(() => import('./features/reweExport/ReweExportFlow.vue'))
+const ExportGuide = defineAsyncComponent(() => import('./features/reweExport/ExportGuide.vue'))
 
 const { t, locale } = useI18n()
 const receipts = ref<Receipt[]>([])
@@ -27,9 +28,11 @@ const persistenceEnabled = ref(localStorage.getItem('bonbon-persistence-enabled'
 const notice = ref('')
 const activeLocale = computed(() => locale.value === 'en' ? 'en' as const : 'de' as const)
 const appVersion = packageInfo.version.replace(/\.0$/, '')
-type AppView = 'dashboard' | 'about' | 'rewe-export'
+type AppView = 'dashboard' | 'about' | 'rewe-export' | 'rewe-guide'
+const guideHash = '#/rewe-guide'
 const exportOpened = ref(false)
 const currentView = ref<AppView>('dashboard')
+const inExportArea = computed(() => currentView.value === 'rewe-export' || currentView.value === 'rewe-guide')
 const aboutTab = ref<'about' | 'privacy'>('about')
 const sessionFiles = ref<Map<string, File>>(new Map())
 
@@ -48,7 +51,9 @@ function syncRoute() {
   if (isExportHash(hash)) {
     exportOpened.value = true
     currentView.value = 'rewe-export'
-
+  } else if (hash === guideHash) {
+    currentView.value = 'rewe-guide'
+    window.scrollTo({ top: 0 })
   } else if (hash === '#/about') {
     currentView.value = 'about'
     aboutTab.value = 'about'
@@ -65,7 +70,8 @@ function setView(view: AppView, tab?: 'about' | 'privacy') {
   if (view === 'rewe-export') {
     exportOpened.value = true
     window.location.hash = lastExportHash()
-
+  } else if (view === 'rewe-guide') {
+    window.location.hash = guideHash
   } else if (view === 'about') {
     if (tab) aboutTab.value = tab
     window.location.hash = (tab || aboutTab.value) === 'privacy' ? '#/privacy' : '#/about'
@@ -316,7 +322,7 @@ function onModalFiles(files: File[]) {
         </a>
       </div>
       <div class="topbar-actions">
-        <template v-if="receipts.length && currentView !== 'rewe-export'">
+        <template v-if="receipts.length && !inExportArea">
           <div class="topbar-data-actions">
             <button class="topbar-btn primary" type="button" @click="openAddModal">
               <span class="plus-icon">+</span> {{ t('importMore') }}
@@ -351,13 +357,16 @@ function onModalFiles(files: File[]) {
     </header>
 
     <nav class="data-flow-switch" :aria-label="t('reweExport.flows')">
-      <button type="button" :class="{ active: currentView !== 'rewe-export' }" :aria-pressed="currentView !== 'rewe-export'" @click="setView('dashboard')">{{ t('reweExport.receipts') }}</button>
-      <button type="button" :class="{ active: currentView === 'rewe-export' }" :aria-pressed="currentView === 'rewe-export'" @click="setView('rewe-export')">{{ t('reweExport.accountExport') }}</button>
+      <button type="button" :class="{ active: !inExportArea }" :aria-pressed="!inExportArea" @click="setView('dashboard')">{{ t('reweExport.receipts') }}</button>
+      <button type="button" :class="{ active: inExportArea }" :aria-pressed="inExportArea" @click="setView('rewe-export')">{{ t('reweExport.accountExport') }}</button>
     </nav>
     <ReweExportFlow v-if="exportOpened" v-show="currentView === 'rewe-export'" />
 
     <template v-if="currentView === 'rewe-export'">
       <!-- Keep the independently owned export flow mounted when changing data sources. -->
+    </template>
+    <template v-else-if="currentView === 'rewe-guide'">
+      <ExportGuide @import="setView('rewe-export')" />
     </template>
     <template v-else-if="currentView === 'about'">
       <AboutView :initial-tab="aboutTab" :has-receipts="receipts.length > 0" @navigate="setView('dashboard')" />
@@ -411,11 +420,11 @@ function onModalFiles(files: File[]) {
       </div>
     </div>
 
-    <section v-if="currentView !== 'rewe-export' && (processing || report.length)" class="import-report" aria-live="polite">
+    <section v-if="!inExportArea && (processing || report.length)" class="import-report" aria-live="polite">
       <header><div><p class="eyebrow">{{ processing ? t('importing') : t('importReport') }}</p><strong>{{ t('filesProcessed', { done: processed, total: processingTotal }) }}</strong></div><progress :value="processed" :max="processingTotal"></progress><button v-if="!processing" class="report-close" type="button" :aria-label="t('close')" @click="report = []">×</button></header>
       <details v-if="!processing"><summary>{{ t('importReport') }}</summary><ul><li v-for="item in report" :key="`${item.filename}-${item.status}`"><span class="status-dot" :class="item.status"></span><span>{{ item.filename }}</span><strong>{{ statusLabel(item.status) }}</strong><small v-if="item.message">{{ item.message }}</small></li></ul></details>
     </section>
-    <p v-if="notice && currentView !== 'rewe-export'" class="toast" role="status">{{ notice }}</p>
+    <p v-if="notice && !inExportArea" class="toast" role="status">{{ notice }}</p>
 
   </main>
 </template>

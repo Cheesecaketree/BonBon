@@ -244,3 +244,33 @@
   .export-rewe-highlights article { padding: 20px; }
   .export-rewe-labels { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 }
+
+/* REWE data request guide */
+.export-guide-link { display: inline-block; margin-top: 14px; color: var(--berry); font-size: 13px; font-weight: 750; text-decoration: none; }
+.export-guide-link:hover { text-decoration: underline; }
+.export-guide { max-width: 720px; }
+.export-guide-header { margin: 20px 0 44px; }
+.export-guide-header h1 { margin: 6px 0 14px; font-size: clamp(32px, 5vw, 52px); line-height: 1.04; letter-spacing: -.04em; }
+.export-guide-header .about-lead { margin-bottom: 24px; }
+.export-guide-checked { margin: 14px 0 0; color: #8e8181; font-size: 12px; }
+.export-guide a.button { display: inline-flex; align-items: center; justify-content: center; max-width: 100%; text-align: center; text-decoration: none; }
+.export-guide .ui-label { color: var(--ink); font-weight: 750; }
+.export-guide-steps { margin: 0; padding: 0; list-style: none; counter-reset: guide-step; }
+.export-guide-steps > li { position: relative; padding: 0 0 34px 56px; counter-increment: guide-step; }
+.export-guide-steps > li::before { content: counter(guide-step); position: absolute; top: 0; left: 0; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--berry); color: white; font-size: 14px; font-weight: 800; }
+.export-guide-steps > li:not(:last-child)::after { content: ''; position: absolute; top: 42px; bottom: 8px; left: 16px; width: 2px; background: var(--line); }
+.export-guide-steps h2 { margin: 4px 0 8px; font-family: Georgia, serif; font-size: 22px; font-weight: 400; letter-spacing: -.02em; }
+.export-guide-steps p { max-width: 620px; margin: 0; color: #5c5050; font-size: 15px; line-height: 1.65; }
+.export-guide-steps .export-guide-note { margin-top: 8px; color: #807272; font-size: 13px; line-height: 1.6; }
+.export-guide-steps .button { margin-top: 16px; }
+.export-guide-warning { margin: 8px 0 0; padding: 4px 0 4px 18px; border-left: 3px solid var(--berry); color: #5c5050; font-size: 14px; line-height: 1.65; }
+.export-guide-footer { margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--line); }
+.export-guide-footer p { margin: 0 0 8px; color: #8e8181; font-size: 13px; line-height: 1.6; }
+.export-guide-footer a { color: var(--berry); font-weight: 750; }
+.export-guide a:focus-visible, .export-guide button:focus-visible, .export-guide-link:focus-visible { outline: 3px solid var(--berry); outline-offset: 3px; }
+@media (max-width: 700px) {
+  .export-guide-steps > li { padding-left: 46px; }
+  .export-guide-steps > li::before { width: 30px; height: 30px; font-size: 13px; }
+  .export-guide-steps > li:not(:last-child)::after { top: 38px; left: 14px; }
+  .export-guide-steps h2 { font-size: 20px; }
+}

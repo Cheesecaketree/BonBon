@@ -19,7 +19,7 @@ Money is stored as integer cents to avoid floating-point errors.
 
 ### REWE account export
 
-A separate **REWE account export** flow accepts the extracted HTML files of a REWE account data request. Select all files together or import their folder. It provides shopping-day and product analysis, Bonus transactions, explained customer classifications and consent records, plus app/device activity. A date-range calendar marks days with data and offers month/year presets. Product tables show unit price ranges and per-unit purchase history; technical profile fields remain optional.
+A separate **REWE account export** flow accepts the extracted HTML files of a REWE account data request. Don't have one yet? The in-app guide (`#/rewe-guide`, linked from the import screen) walks through requesting it in your REWE account under *Daten und Sicherheit*. Select all files together or import their folder. It provides shopping-day and product analysis, Bonus transactions, explained customer classifications and consent records, plus app/device activity. A date-range calendar marks days with data and offers month/year presets. Product tables show unit price ranges and per-unit purchase history; technical profile fields remain optional.
 
 Export tables remain independent from PDF receipts and from each other. Purchased items have day and market information, but no reliable link to the separate receipt index; the app does not invent receipt identities or basket statistics. Item amounts include deposits and returns and do not represent actual payments after Bonus redemption. Receipt numbers and timestamps remain in the snapshot for future linking.
 

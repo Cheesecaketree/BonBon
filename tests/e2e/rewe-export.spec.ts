@@ -1,10 +1,19 @@
 import { expect, test } from '@playwright/test'
+import { mkdtemp, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-const fixtureFiles = ['purchases', 'receipts-and-consents', 'profile-and-activity'].map((name) => path.resolve(`tests/fixtures/rewe-export/${name}.html`))
+const fixtureFolder = path.resolve('tests/fixtures/rewe-export')
+
+/** The import only offers a folder picker, so synthetic files are written to a temporary folder first. */
+async function folderWith(file: { name: string; mimeType: string; buffer: Buffer }) {
+  const folder = await mkdtemp(path.join(tmpdir(), 'bonbon-export-'))
+  await writeFile(path.join(folder, file.name), file.buffer)
+  return folder
+}
 
 async function importExport(page: import('@playwright/test').Page) {
-  await page.locator('[data-export-files]').setInputFiles(fixtureFiles)
+  await page.locator('[data-export-folder]').setInputFiles(fixtureFolder)
   await expect(page.locator('#export-panel-insights')).toBeVisible()
   await expect(page.getByRole('tab', { name: 'Auswertung', exact: true })).toHaveAttribute('aria-selected', 'true')
   await page.getByRole('tab', { name: 'Einkäufe', exact: true }).click()
@@ -74,7 +83,7 @@ test('replaces snapshots, preserves a good import after failure, and saves and d
   await expect(page.getByRole('tab', { name: 'Einkäufe', exact: true })).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.export-dashboard .primary-stats')).toContainText('6,55')
   await page.getByRole('button', { name: 'Auszug ersetzen', exact: true }).click()
-  await page.locator('[data-export-files]').setInputFiles({ name: 'invalid.html', mimeType: 'text/html', buffer: Buffer.from('<script>throw new Error("should never execute")</script><img src="https://example.invalid/track">') })
+  await page.locator('[data-export-folder]').setInputFiles(await folderWith({ name: 'invalid.html', mimeType: 'text/html', buffer: Buffer.from('<script>throw new Error("should never execute")</script><img src="https://example.invalid/track">') }))
   await expect(page.getByRole('alert')).toBeVisible()
   await page.locator('.rewe-export-flow').getByRole('button', { name: 'Zurück', exact: true }).click()
   await expect(page.locator('.export-dashboard .primary-stats')).toContainText('6,55')
@@ -173,7 +182,7 @@ test('explains translated profile values and keeps unnamed interest rows and ori
 test('starts on insights, drills into details with working back navigation, and shares a summary image', async ({ page }, testInfo) => {
   await page.clock.install({ time: new Date('2026-10-12T12:00:00Z') })
   await page.goto('/#/rewe-export')
-  await page.locator('[data-export-files]').setInputFiles(fixtureFiles)
+  await page.locator('[data-export-folder]').setInputFiles(fixtureFolder)
   const insights = page.locator('#export-panel-insights')
   await expect(insights).toBeVisible()
   await expect(page).toHaveURL(/#\/rewe-export\/shopping$/)
@@ -231,7 +240,7 @@ test('starts on insights, drills into details with working back navigation, and 
   await expect(page.getByRole('button', { name: 'Zusammenfassung teilen', exact: true })).toBeFocused()
 
   await page.getByRole('button', { name: 'Auszug ersetzen', exact: true }).click()
-  await page.locator('[data-export-files]').setInputFiles(fixtureFiles)
+  await page.locator('[data-export-folder]').setInputFiles(fixtureFolder)
   await expect(insights).toBeVisible()
   await expect(page).toHaveURL(/#\/rewe-export\/shopping$/)
 })
@@ -242,7 +251,7 @@ test('keeps long product and assigned-market names readable in insights and REWE
   const market = 'REWE Synthetischer Markt mit einer besonders langen Firmenbezeichnung und Adresse in der Beispielstraße 123, 12345 Musterstadt'
   const rows = ['2026-01-01', '2026-01-02'].map((date) => `<tr><td>${market}</td><td>${date}</td><td>${product}</td><td>1.0</td><td>2.00</td></tr>`).join('')
   const html = `<table><tr><th>MARKT</th><th>TAG</th><th>ARTIKEL</th><th>MENGE</th><th>BETRAG</th></tr>${rows}</table><table><tr><th>STAMMMARKT</th><th>RFM_SEGMENT</th></tr><tr><td>${market}</td><td>Unfamiliar synthetic segment</td></tr></table>`
-  await page.locator('[data-export-files]').setInputFiles({ name: 'synthetic-long.html', mimeType: 'text/html', buffer: Buffer.from(html) })
+  await page.locator('[data-export-folder]').setInputFiles(await folderWith({ name: 'synthetic-long.html', mimeType: 'text/html', buffer: Buffer.from(html) }))
   await expect(page.locator('#export-panel-insights')).toContainText(market)
   for (const language of ['DE', 'EN']) {
     await page.getByRole('button', { name: language, exact: true }).click()
@@ -251,4 +260,24 @@ test('keeps long product and assigned-market names readable in insights and REWE
   await area(page, 'What REWE knows').click()
   await expect(page.locator('[data-label="primaryMarket"]')).toContainText(market)
   await expectNoOverflow(page)
+})
+
+test('opens the data request guide from the import screen and returns to the import', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  await page.goto('/')
+  await page.getByRole('button', { name: 'REWE-Datenexport', exact: true }).click()
+  await page.locator('[data-export-guide-link]').click()
+  await expect(page).toHaveURL(/#\/rewe-guide$/)
+  await expect(page.getByRole('heading', { level: 1, name: 'So bekommst du deinen REWE-Datenexport' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'REWE-Datenexport', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.export-guide-steps .ui-label', { hasText: 'Datenübertragung anfragen' })).toBeVisible()
+  await expectNoOverflow(page)
+  await page.reload()
+  await expect(page.getByRole('heading', { level: 1, name: 'So bekommst du deinen REWE-Datenexport' })).toBeVisible()
+  await page.getByRole('button', { name: 'Zum Import →' }).click()
+  await expect(page).toHaveURL(/#\/rewe-export/)
+  await expect(page.locator('[data-export-folder]')).toBeAttached()
+  await expect(page.locator('[data-export-guide-link]')).toBeVisible()
+  expect(errors).toEqual([])
 })

@@ -18,7 +18,6 @@ const total = ref(0)
 const dragging = ref(false)
 const replacing = ref(false)
 const error = ref('')
-const filesInput = ref<HTMLInputElement>()
 const folderInput = ref<HTMLInputElement>()
 const backupInput = ref<HTMLInputElement>()
 const persistenceKey = 'bonbon-rewe-export-persistence'
@@ -140,13 +139,11 @@ async function clearSnapshot() {
           <div class="receipt-mark" aria-hidden="true"><span></span><span></span><span></span></div>
           <div class="import-copy"><p class="kicker">{{ t('reweExport.kicker') }}</p><h2>{{ t('reweExport.dropTitle') }}</h2><p>{{ data ? t('reweExport.replaceCopy') : t('reweExport.dropCopy') }}</p></div>
           <div class="button-row">
-            <button class="button primary" type="button" :disabled="busy" @click="filesInput?.click()">{{ t('reweExport.files') }}</button>
-            <button class="button secondary" type="button" :disabled="busy" @click="folderInput?.click()">{{ t('reweExport.folder') }}</button>
+            <button class="button primary" type="button" :disabled="busy" @click="folderInput?.click()">{{ t('reweExport.folder') }}</button>
           </div>
           <p class="fine-print">{{ t('reweExport.local') }}</p>
-          <button v-if="data" class="export-inline-button" type="button" :disabled="busy" @click="replacing = false">{{ t('back') }}</button>
-          <button v-else class="export-inline-button" type="button" :disabled="busy" @click="backupInput?.click()">{{ t('reweExport.importJson') }}</button>
-        </section>
+          <a class="export-guide-link" href="#/rewe-guide" data-export-guide-link>{{ t('reweExport.guideLink') }} →</a>
+          <button v-if="data" class="export-inline-button" type="button" :disabled="busy" @click="replacing = false">{{ t('back') }}</button>        </section>
       </section>
     </template>
     <template v-else>
@@ -163,7 +160,6 @@ async function clearSnapshot() {
       </section>
     </template>
     <p v-if="processing" class="export-message" role="status">{{ t('reweExport.processing', { done, total }) }} <progress :value="done" :max="total || 1" /></p>
-    <input ref="filesInput" class="hidden-file" data-export-files type="file" accept="text/html,.html,.htm" multiple tabindex="-1" aria-hidden="true" @change="selectFiles" />
     <input ref="folderInput" class="hidden-file" data-export-folder type="file" accept="text/html,.html,.htm" multiple webkitdirectory tabindex="-1" aria-hidden="true" @change="selectFiles" />
     <input ref="backupInput" class="hidden-file" data-export-backup type="file" accept="application/json,.json" tabindex="-1" aria-hidden="true" @change="openBackup" />
   </section>
